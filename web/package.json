@@ -1,0 +1,31 @@
+{
+  "name": "cuteclaw-web",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n vite,zig,agent -c blue,green,cyan \"vite\" \"sh -c 'cd .. && exec ./zig-out/bin/cuteclaw serve'\" \"tsx watch server/agent-host.ts\"",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "server": "tsx server/index.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.2",
+    "@uiw/react-md-editor": "^4.0.11",
+    "fastify": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.3"
+  }
+}
