@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "provider": "openai_compat",
+  "api_base": "https://api.openai.com/v1",
+  "api_key_file": "",
+  "api_key_env": "OPENAI_API_KEY",
+  "model": "gpt-4o",
+  "connect_timeout_sec": 30,
+  "read_timeout_sec": 120,
+  "extra_headers": []
+}

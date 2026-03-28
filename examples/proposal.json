@@ -1,0 +1,8 @@
+{
+  "skill_name": "sample_skill",
+  "version_hint": "from-example",
+  "patch_summary": "示例：登记一条可复用步骤",
+  "preconditions": "在已初始化 CuteClaw 快照的目录下执行",
+  "prohibitions": "勿写入密钥或令牌",
+  "new_body": "1. 阅读 docs/format.md 了解 store 结构\n2. 使用 `zig build run -- evolve --file examples/proposal.json --policy auto_append_only --semver 0.1.0`\n3. 用 `status` 与 `export` 校验结果\n"
+}

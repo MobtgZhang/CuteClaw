@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "library_version": "0.1.1",
+  "saved_unix": 0,
+  "episodic": [],
+  "skills": [],
+  "facts": [],
+  "rollups": [],
+  "audit": [],
+  "tasks_recorded": 0,
+  "tasks_succeeded": 0,
+  "working": {}
+}
