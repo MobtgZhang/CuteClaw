@@ -1,0 +1,3200 @@
+:root {
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  color: #1a1a1a;
+  background: #f4f4f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 3rem;
+}
+
+h1 {
+  font-size: 1.35rem;
+  margin: 0 0 0.5rem;
+}
+
+nav.tabs {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin: 1rem 0 1.25rem;
+}
+
+nav.tabs button {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid #d4d4d8;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+nav.tabs button.active {
+  background: #18181b;
+  color: #fafafa;
+  border-color: #18181b;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+pre.json {
+  overflow: auto;
+  max-height: 420px;
+  font-size: 0.78rem;
+  background: #fafafa;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #e4e4e7;
+}
+
+label {
+  display: block;
+  margin: 0.5rem 0 0.2rem;
+  font-size: 0.85rem;
+  color: #52525b;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  font: inherit;
+}
+
+textarea {
+  min-height: 100px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.row > div {
+  flex: 1;
+  min-width: 140px;
+}
+
+button.primary {
+  padding: 0.5rem 1rem;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+button.primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.err {
+  color: #b91c1c;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.ok {
+  color: #15803d;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.muted {
+  color: #71717a;
+  font-size: 0.85rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid #e4e4e7;
+}
+
+/* —— Agent 控制台（暗色 IDE 风）—— */
+.agent-app {
+  min-height: 100vh;
+  background: radial-gradient(120% 80% at 50% -20%, #1e1b4b33, transparent),
+    linear-gradient(180deg, #0a0a0c 0%, #0d0d0f 40%, #0d0d0f 100%);
+  color: #e4e4e7;
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+.agent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid #ffffff0d;
+  background: linear-gradient(180deg, #141418cc 0%, #11111399 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 1px 0 #ffffff08 inset;
+}
+
+.agent-header h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.agent-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: #a1a1aa;
+}
+
+.agent-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.agent-btn {
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #3f3f46;
+  background: #18181b;
+  color: #fafafa;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+
+.agent-btn:hover:not(:disabled) {
+  border-color: #52525b;
+  background: #1f1f23;
+}
+
+.agent-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.agent-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.agent-btn.primary {
+  background: #3b82f6;
+  border-color: #2563eb;
+}
+
+.agent-btn.ghost {
+  background: transparent;
+}
+
+.agent-btn.warn {
+  background: #b45309;
+  border-color: #92400e;
+}
+
+.agent-banner.err {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #450a0a;
+  color: #fecaca;
+  font-size: 0.88rem;
+}
+
+.agent-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.agent-main {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  gap: 0;
+  min-height: calc(100vh - 72px);
+}
+
+.gpt-app .agent-main {
+  min-height: calc(100vh - 57px);
+}
+
+.gpt-app .agent-main > .gpt-chat {
+  min-height: 0;
+  align-self: stretch;
+}
+
+@media (max-width: 960px) {
+  .agent-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+.agent-sidebar {
+  border-right: 1px solid #27272a;
+  padding: 0.75rem;
+  background: #111113;
+  overflow: auto;
+}
+
+.agent-side-h {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #71717a;
+  margin: 0.75rem 0 0.35rem;
+}
+
+.agent-side-h:first-child {
+  margin-top: 0;
+}
+
+.agent-linkbtn {
+  width: 100%;
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  border: 1px dashed #3f3f46;
+  background: transparent;
+  color: #a1a1aa;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.agent-session-list,
+.agent-skill-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.agent-session-list button,
+.agent-skill-list button {
+  width: 100%;
+  text-align: left;
+  padding: 0.35rem 0.45rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #d4d4d8;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.agent-session-list button.active,
+.agent-skill-list button.active {
+  background: #27272a;
+  color: #fff;
+}
+
+.agent-chat {
+  display: flex;
+  flex-direction: column;
+  background: #0d0d0f;
+  min-height: min(560px, calc(100vh - 72px));
+}
+
+.agent-trace-inline-wrap {
+  flex-shrink: 0;
+  padding: 0.65rem 1rem 0;
+  border-bottom: 1px solid #27272a;
+}
+
+.agent-trace-inline-h {
+  margin-top: 0;
+  margin-bottom: 0.35rem;
+}
+
+.agent-trace-inline {
+  max-height: 160px;
+  margin: 0 0 0.65rem;
+}
+
+.agent-messages {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem;
+}
+
+.agent-placeholder {
+  color: #71717a;
+  font-size: 0.9rem;
+}
+
+.agent-bubble {
+  margin-bottom: 1rem;
+  max-width: 92%;
+}
+
+.agent-bubble.user {
+  margin-left: auto;
+}
+
+.agent-bubble .agent-role {
+  font-size: 0.65rem;
+  color: #71717a;
+  text-transform: uppercase;
+}
+
+.agent-bubble.user .agent-role {
+  text-align: right;
+  display: block;
+}
+
+.agent-md {
+  margin-top: 0.25rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: #18181b;
+  border: 1px solid #27272a;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+}
+
+.agent-bubble.user .agent-md {
+  background: #1e3a5f;
+  border-color: #2563eb;
+}
+
+.agent-compose {
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid #27272a;
+}
+
+.agent-compose textarea {
+  background: #111113;
+  border-color: #3f3f46;
+  color: #fafafa;
+  min-height: 72px;
+}
+
+.agent-compose-row {
+  margin-top: 0.5rem;
+}
+
+.agent-trace {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  background: #080809;
+  border: 1px solid #27272a;
+  border-radius: 8px;
+  padding: 0.55rem 0.6rem;
+  overflow: auto;
+  max-height: 200px;
+  white-space: pre-wrap;
+  color: #a1a1aa;
+}
+
+.agent-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.agent-editor-toolbar .agent-btn.primary {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+}
+
+.agent-editor-path {
+  flex: 1;
+  min-width: 0;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.68rem;
+  color: #71717a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-md-editor-wrap {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #27272a;
+  background: #0a0a0b;
+}
+
+.agent-md-editor-wrap .w-md-editor {
+  background: #0a0a0b !important;
+  box-shadow: none !important;
+}
+
+.agent-md-editor-wrap .w-md-editor-toolbar {
+  background: #111113 !important;
+  border-bottom-color: #27272a !important;
+}
+
+.agent-md-editor-wrap .w-md-editor-text {
+  font-family: "JetBrains Mono", ui-monospace, monospace !important;
+  font-size: 0.8rem !important;
+}
+
+.agent-model-popover-root {
+  position: relative;
+}
+
+.agent-model-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #3f3f46;
+  background: linear-gradient(180deg, #1c1c21 0%, #16161a 100%);
+  color: #fafafa;
+  font-size: 0.82rem;
+  cursor: pointer;
+  max-width: min(240px, 42vw);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.agent-model-trigger:hover:not(:disabled) {
+  border-color: #6366f155;
+  box-shadow: 0 0 0 1px #6366f122;
+}
+
+.agent-model-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agent-model-trigger-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #71717a;
+  flex-shrink: 0;
+}
+
+.agent-model-trigger-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.76rem;
+  color: #c4b5fd;
+}
+
+.agent-model-chevron {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  color: #71717a;
+}
+
+.agent-model-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 260px;
+  padding: 0.65rem;
+  border-radius: 10px;
+  border: 1px solid #27272a;
+  background: linear-gradient(165deg, #18181bcc 0%, #111113f2 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 12px 40px #00000066, 0 0 0 1px #ffffff06 inset;
+  animation: agent-pop-in 0.16s ease-out;
+}
+
+@keyframes agent-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.agent-model-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.65rem;
+}
+
+.agent-model-presets button {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #d4d4d8;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.agent-model-presets button:hover {
+  background: #27272a;
+}
+
+.agent-model-presets button.active {
+  border-color: #6366f155;
+  background: #312e8199;
+  color: #e9d5ff;
+}
+
+.agent-model-custom {
+  display: flex;
+  gap: 0.35rem;
+  align-items: stretch;
+}
+
+.agent-model-custom input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #3f3f46;
+  background: #0d0d0f;
+  color: #fafafa;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.76rem;
+}
+
+.agent-drawer .agent-model-popover-root {
+  width: 100%;
+}
+
+.agent-drawer .agent-model-trigger {
+  max-width: none;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.agent-drawer .agent-model-panel {
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+}
+
+.agent-drawer-back {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.agent-drawer {
+  width: min(420px, 100%);
+  background: #111113;
+  border-left: 1px solid #27272a;
+  padding: 1.25rem;
+  overflow: auto;
+}
+
+/* Skill 文档抽屉：用内部滚动 + 定高编辑区，避免分栏下方大块纯黑留白 */
+.agent-drawer.agent-drawer-skill {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 100vh;
+}
+
+.agent-skill-drawer-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #71717a;
+}
+
+.agent-skill-new-fields {
+  margin-bottom: 0.85rem;
+}
+
+.agent-skill-new-fields label {
+  display: block;
+  margin: 0.45rem 0 0.2rem;
+  font-size: 0.82rem;
+  color: #a1a1aa;
+}
+
+.agent-skill-new-fields input {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid #3f3f46;
+  background: #0d0d0f;
+  color: #fafafa;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.82rem;
+}
+
+.agent-drawer-skill {
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 1rem;
+  overflow-y: auto;
+  align-self: stretch;
+}
+
+.agent-drawer-skill .agent-md-editor-skill {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 为 MDEditor 提供确定高度，使 height:100% 与分栏预览填满区域 */
+.agent-drawer-skill .agent-md-editor-skill-edit {
+  flex: 1;
+  min-height: 280px;
+  height: calc(100vh - 248px);
+  max-height: calc(100vh - 248px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.agent-drawer-skill .agent-md-editor-skill-edit .w-md-editor {
+  flex: 1 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.agent-drawer-skill .agent-md-editor-skill .w-md-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-drawer-skill .agent-md-editor-skill .w-md-editor-content {
+  flex: 1;
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+.agent-drawer-skill .agent-md-editor-skill .w-md-editor-area {
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+.agent-drawer-skill .agent-md-editor-skill .w-md-editor-text {
+  min-height: 100% !important;
+}
+
+.agent-skill-mode-toggle {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0.65rem;
+}
+
+.agent-skill-mode-toggle button {
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #3f3f46;
+  background: #0d0d0f;
+  color: #a1a1aa;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.agent-skill-mode-toggle button.active {
+  border-color: #6366f155;
+  background: #312e8199;
+  color: #e9d5ff;
+}
+
+.agent-md-preview-pane {
+  min-height: 280px;
+  max-height: min(60vh, 520px);
+  overflow: auto;
+  padding: 0.75rem;
+  background: #0a0a0b;
+  font-size: 0.88rem;
+}
+
+.agent-drawer-skill .agent-md-preview-pane {
+  flex: 1;
+  min-height: 280px;
+  height: calc(100vh - 248px);
+  max-height: calc(100vh - 248px);
+  background: #121214;
+  border: 1px solid #27272a;
+  border-radius: 8px;
+}
+
+.agent-model-panel-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.45rem;
+}
+
+.agent-model-refresh {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.72rem;
+  border-radius: 6px;
+  border: 1px solid #3f3f46;
+  background: #18181b;
+  color: #a1a1aa;
+  cursor: pointer;
+}
+
+.agent-model-refresh:hover:not(:disabled) {
+  border-color: #52525b;
+  color: #e4e4e7;
+}
+
+.agent-model-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agent-model-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #27272a;
+}
+
+.agent-model-extras button {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #a78bfa;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.agent-model-extras button:hover {
+  background: #27272a;
+}
+
+.agent-model-extras button.active {
+  border-color: #6366f155;
+  background: #312e8199;
+  color: #e9d5ff;
+}
+
+.agent-preview {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  background: #080809;
+  border: 1px solid #27272a;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 240px;
+  white-space: pre-wrap;
+  color: #a1a1aa;
+}
+
+.agent-drawer h2 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+}
+
+.agent-drawer label {
+  color: #a1a1aa;
+}
+
+.agent-settings-hint {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #71717a;
+}
+
+.agent-btn-small {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.78rem;
+  margin-bottom: 0.35rem;
+}
+
+.agent-drawer input,
+.agent-drawer textarea,
+.agent-drawer select {
+  background: #0d0d0f;
+  border-color: #3f3f46;
+  color: #fafafa;
+}
+
+.agent-drawer-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.agent-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.agent-check input {
+  width: auto;
+}
+
+.agent-modal {
+  position: relative;
+  margin: auto;
+  max-width: 520px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: auto;
+  background: #111113;
+  border: 1px solid #27272a;
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.agent-modal.wide {
+  max-width: 960px;
+}
+
+.agent-modal-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  border: none;
+  background: none;
+  color: #a1a1aa;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+/* —— ChatGPT 风格（暗色主布局，与 .gpt-app 联用）—— */
+.gpt-app {
+  background: #212121;
+  color: #ececec;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.gpt-topbar {
+  background: #212121;
+  border-bottom: 1px solid #ffffff14;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.gpt-topbar .agent-btn {
+  background: #2f2f2f;
+  border-color: #ffffff1a;
+  color: #ececec;
+}
+
+.gpt-topbar .agent-btn:hover:not(:disabled) {
+  background: #3f3f3f;
+  border-color: #ffffff2a;
+}
+
+.gpt-topbar .agent-btn.primary {
+  background: #10a37f;
+  border-color: #0d8f6e;
+}
+
+.gpt-topbar .agent-btn.ghost {
+  background: transparent;
+}
+
+.gpt-app .agent-sidebar {
+  background: #171717;
+  border-right-color: #ffffff0d;
+}
+
+.gpt-new-chat {
+  border: 1px solid #ffffff1a !important;
+  border-radius: 8px !important;
+  background: #212121 !important;
+  color: #ececec !important;
+  font-weight: 500;
+}
+
+.gpt-new-chat:hover {
+  background: #2f2f2f !important;
+}
+
+.gpt-app .agent-session-list button,
+.gpt-app .agent-skill-list button {
+  border-radius: 8px;
+  padding: 0.5rem 0.55rem;
+  position: relative;
+}
+
+.gpt-app .agent-skill-list button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gpt-app .agent-session-list button:hover,
+.gpt-app .agent-skill-list button:hover {
+  background: #ffffff0d;
+}
+
+.gpt-app .agent-session-list button.active,
+.gpt-app .agent-skill-list button.active {
+  background: #ffffff12;
+  color: #ececf1;
+  box-shadow: inset 3px 0 0 0 #10a37f;
+}
+
+.gpt-chat {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 57px);
+  background: #343541;
+  border: none;
+}
+
+.gpt-trace-panel {
+  flex-shrink: 0;
+  border-bottom: 1px solid #ffffff0d;
+  padding: 0 1rem;
+}
+
+.gpt-trace-summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: #acacbe;
+  padding: 0.45rem 0;
+  list-style: none;
+}
+
+.gpt-trace-panel[open] > .gpt-trace-summary {
+  margin-bottom: 0.35rem;
+}
+
+.gpt-trace-panel-body {
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0 0 0.5rem;
+  padding: 0 0 0.35rem 0.5rem;
+  border-left: 2px solid #ffffff14;
+}
+
+.gpt-trace-empty {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #8e8ea0;
+}
+
+.gpt-trace-group {
+  margin-bottom: 0.35rem;
+}
+
+.gpt-trace-group-summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0;
+  font-size: 0.72rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #c5c5d2;
+}
+
+.gpt-trace-group-count {
+  font-size: 0.62rem;
+  opacity: 0.75;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  background: #ffffff10;
+  color: #acacbe;
+}
+
+.gpt-trace-group-body {
+  margin-top: 0.15rem;
+  padding-left: 0.45rem;
+  border-left: 1px solid #ffffff0d;
+}
+
+.gpt-trace-item {
+  margin-bottom: 0.2rem;
+}
+
+.gpt-trace-item-summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.12rem 0;
+  font-size: 0.7rem;
+  color: #acacbe;
+}
+
+.gpt-trace-item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.gpt-trace-item-summary time {
+  flex-shrink: 0;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.65rem;
+}
+
+.gpt-trace-item-body {
+  margin: 0.2rem 0 0.35rem;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: #1e1e24;
+  border: 1px solid #ffffff12;
+  border-radius: 6px;
+  overflow: auto;
+  max-height: 140px;
+  color: #d4d4d8;
+  user-select: text;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.gpt-messages-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem 1rem 0.75rem;
+}
+
+.gpt-messages-inner {
+  width: 100%;
+  max-width: min(96vw, 56rem);
+  margin: 0 auto;
+}
+
+.gpt-placeholder {
+  text-align: center;
+  color: #acacbe;
+  font-size: 0.9rem;
+  padding: 2rem 1rem;
+}
+
+.gpt-turn {
+  display: flex;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+  align-items: flex-start;
+}
+
+.gpt-turn-assistant {
+  flex-direction: row;
+}
+
+.gpt-turn-user {
+  flex-direction: row-reverse;
+}
+
+@media (max-width: 640px) {
+  .gpt-turn {
+    flex-direction: column;
+  }
+  .gpt-turn-user {
+    flex-direction: column;
+  }
+  .gpt-turn-label {
+    width: auto !important;
+  }
+}
+
+.gpt-turn-label {
+  width: 2rem;
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: #acacbe;
+  opacity: 0.5;
+  padding-top: 0.35rem;
+  letter-spacing: 0.02em;
+}
+
+.gpt-turn-user .gpt-turn-label {
+  text-align: right;
+}
+
+.gpt-turn-body {
+  min-width: 0;
+  width: 100%;
+}
+
+.gpt-md-user {
+  background: #3e3f4b;
+  color: #f4f4f5;
+  padding: 1rem 1.25rem;
+  border-radius: 1.35rem;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  font-size: 1rem;
+  max-width: 75%;
+  width: fit-content;
+  min-width: 0;
+  margin-left: auto;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  border: 1px solid #ffffff14;
+  box-shadow: 0 2px 12px #00000028;
+}
+
+.gpt-md-assistant {
+  background: transparent;
+  color: #ececec;
+  padding: 0.1rem 0;
+  border-radius: 0;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  border: none;
+  max-width: 100%;
+}
+
+.gpt-md-assistant .wmde-markdown,
+.gpt-md-assistant .markdown-body {
+  background: transparent !important;
+  color: inherit !important;
+  font-size: inherit !important;
+}
+
+/* 助手区代码块：可读、可选中、预留复制按钮位置 */
+.gpt-md-assistant .markdown-body pre {
+  position: relative;
+  margin: 0.75rem 0 !important;
+  padding: 0.85rem 2.5rem 0.85rem 1rem !important;
+  border-radius: 8px !important;
+  border: 1px solid #ffffff18 !important;
+  background: #0d0d12 !important;
+  overflow: visible !important;
+}
+
+.gpt-md-assistant .markdown-body pre code {
+  user-select: text;
+  font-size: 0.82rem !important;
+  line-height: 1.5 !important;
+  background: transparent !important;
+}
+
+.gpt-md-assistant pre .copied {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 0.3rem;
+  border-radius: 6px;
+  color: #ececec;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid #ffffff18;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.gpt-md-assistant pre .copied:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+
+.gpt-edit-block {
+  max-width: 100%;
+}
+
+.gpt-edit-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #ffffff2a;
+  background: #40414f;
+  color: #ececec;
+  font: inherit;
+  resize: vertical;
+}
+
+.gpt-msg-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.gpt-btn-mini {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+  border-radius: 6px;
+  border: 1px solid #ffffff2a;
+  background: transparent;
+  color: #acacbe;
+  cursor: pointer;
+}
+
+.gpt-btn-mini:hover:not(:disabled) {
+  background: #ffffff10;
+  color: #ececec;
+}
+
+.gpt-btn-mini:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gpt-btn-mini.primary {
+  background: #10a37f;
+  border-color: #10a37f;
+  color: #fff;
+}
+
+.gpt-btn-mini.primary:hover {
+  background: #0d8f6e;
+}
+
+.gpt-btn-mini.danger:hover {
+  border-color: #f87171;
+  color: #fca5a5;
+}
+
+.gpt-compose-outer {
+  flex-shrink: 0;
+  padding: 0.5rem 1rem max(0.65rem, env(safe-area-inset-bottom, 0px));
+  background: #343541;
+  border-top: 1px solid #ffffff0d;
+}
+
+.gpt-compose-inner {
+  width: 100%;
+  max-width: min(96vw, 56rem);
+  margin: 0 auto;
+}
+
+.gpt-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.65rem;
+  background: #40414f;
+  border: 1px solid #ffffff1a;
+  border-radius: 1.5rem;
+  padding: 0.5rem 0.65rem 0.5rem 1rem;
+  box-shadow: 0 0 0 1px #0000001a inset;
+}
+
+.gpt-input-row:focus-within {
+  border-color: #ffffff33;
+  box-shadow: 0 0 0 1px #10a37f55;
+}
+
+.gpt-input {
+  flex: 1;
+  min-height: 44px;
+  max-height: 200px;
+  border: none;
+  background: transparent;
+  color: #ececec;
+  font: inherit;
+  font-size: 0.95rem;
+  resize: none;
+  line-height: 1.45;
+  padding: 0.35rem 0;
+}
+
+.gpt-input:focus {
+  outline: none;
+}
+
+.gpt-input::placeholder {
+  color: #8e8ea0;
+}
+
+.gpt-send {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #ececec;
+  color: #343541;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.gpt-send:hover:not(:disabled) {
+  background: #fff;
+}
+
+.gpt-send:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.gpt-send-stop {
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.65rem;
+}
+
+.gpt-send-stop:hover {
+  background: #dc2626;
+  color: #fff;
+}
+
+.legacy-wrap {
+  color: #1a1a1a;
+  background: #f4f4f5;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.legacy-wrap h2 {
+  color: #18181b;
+}
+
+.legacy-wrap .muted {
+  color: #52525b;
+}
+
+/* —— 侧栏会话行、欢迎页、底部工具条 —— */
+.gpt-sidebar-column {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 57px);
+  overflow: hidden;
+  padding: 0 !important;
+}
+
+.gpt-version-tag {
+  font-size: 0.65em;
+  font-weight: 500;
+  color: #acacbe;
+  vertical-align: middle;
+  margin-left: 0.25rem;
+}
+
+.gpt-sidebar-zones {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.gpt-sidebar-zone {
+  flex-shrink: 0;
+}
+
+.gpt-sidebar-zone:last-child {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gpt-sidebar-zone:last-child .gpt-session-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.gpt-sidebar-zone.is-collapsed {
+  flex-shrink: 0;
+}
+
+.gpt-zone-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  margin: 0 0 0.35rem;
+  padding: 0.35rem 0.15rem 0.35rem 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #d4d4d8;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-align: left;
+}
+
+.gpt-zone-header:hover {
+  background: #ffffff08;
+}
+
+.gpt-zone-chevron {
+  flex-shrink: 0;
+  width: 1rem;
+  opacity: 0.55;
+  font-size: 0.6rem;
+  line-height: 1;
+}
+
+.gpt-zone-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.gpt-row-menu-root {
+  position: relative;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.gpt-row-kebab {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #a1a1aa;
+  font-size: 1.15rem;
+  line-height: 1;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.gpt-row-kebab:hover,
+.gpt-row-kebab[aria-expanded="true"] {
+  background: #ffffff12;
+  color: #ececec;
+}
+
+.gpt-row-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 0.15rem;
+  min-width: 10rem;
+  padding: 0.3rem;
+  border-radius: 8px;
+  border: 1px solid #ffffff1a;
+  background: #2a2a32;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  z-index: 80;
+}
+
+.gpt-row-menu-item {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #ececec;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gpt-row-menu-item:hover:not(:disabled) {
+  background: #ffffff10;
+}
+
+.gpt-row-menu-item:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.gpt-row-menu-item.danger:hover:not(:disabled) {
+  color: #fca5a5;
+}
+
+.gpt-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.gpt-app .agent-skill-list.gpt-skill-row-list .gpt-skill-main {
+  display: flex !important;
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gpt-run-flow-wait {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  border: 1px dashed #ffffff22;
+  background: #2a2a3299;
+  font-size: 0.82rem;
+  color: #a1a1aa;
+}
+
+.gpt-run-flow-panel {
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  border: 1px solid #ffffff18;
+  border-radius: 10px;
+  background: #2a2a32;
+  color: #d4d4d8;
+}
+
+.gpt-run-flow-panel-sum {
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #9ca3af;
+  user-select: none;
+}
+
+.gpt-run-flow-panel-sum::-webkit-details-marker {
+  display: none;
+}
+
+.gpt-run-flow-panel-body {
+  padding: 0 0.55rem 0.55rem;
+  max-height: 22rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.gpt-run-flow-step {
+  border-radius: 8px;
+  border: 1px solid #ffffff12;
+  background: #1f1f26;
+  font-size: 0.78rem;
+}
+
+.gpt-run-flow-sum {
+  padding: 0.4rem 0.55rem;
+  cursor: pointer;
+  list-style: none;
+  color: #a1a1aa;
+  user-select: none;
+}
+
+.gpt-run-flow-sum::-webkit-details-marker {
+  display: none;
+}
+
+.gpt-run-flow-sum-thinking {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.gpt-run-flow-pre {
+  margin: 0;
+  padding: 0 0.55rem 0.5rem;
+  max-height: 10rem;
+  overflow: auto;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #a1a1aa;
+}
+
+.gpt-run-flow-thinking-body {
+  padding: 0 0.45rem 0.5rem;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.gpt-run-flow-tool {
+  padding: 0.45rem 0.55rem;
+}
+
+.gpt-run-flow-tool-h {
+  font-weight: 600;
+  color: #e4e4e7;
+  margin-bottom: 0.25rem;
+}
+
+.gpt-run-flow-tool-result.is-ok {
+  border-color: #14532d66;
+}
+
+.gpt-run-flow-tool-result.is-err {
+  border-color: #7f1d1d66;
+}
+
+.gpt-run-flow-error {
+  border-color: #7f1d1d55;
+}
+
+/* Cursor 式：每条助手消息上方的执行轨（含 task_plan） */
+.gpt-cursor-agent-rail {
+  width: 100%;
+  max-width: min(96vw, 56rem);
+  margin: 0 0 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.gpt-run-flow-panel-cursor {
+  border-style: solid;
+  border-color: #3f3f46;
+  background: linear-gradient(180deg, #27272f 0%, #1f1f26 100%);
+}
+
+.gpt-run-flow-plan {
+  padding: 0.5rem 0.6rem;
+}
+
+.gpt-run-flow-plan-h {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #a78bfa;
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.02em;
+}
+
+.gpt-run-flow-plan-thought {
+  margin: 0 0 0.5rem;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: #a1a1aa;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.gpt-plan-todo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.gpt-plan-todo-item {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 0.45rem;
+  align-items: start;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  padding: 0.35rem 0.4rem;
+  border-radius: 6px;
+  background: #18181bcc;
+  border: 1px solid #ffffff0f;
+}
+
+.gpt-plan-todo-status {
+  grid-row: 1 / span 2;
+  font-size: 0.85rem;
+  color: #71717a;
+  line-height: 1.2;
+}
+
+.gpt-plan-todo-done .gpt-plan-todo-status {
+  color: #4ade80;
+}
+
+.gpt-plan-todo-in_progress .gpt-plan-todo-status {
+  color: #fbbf24;
+}
+
+.gpt-plan-todo-cancelled .gpt-plan-todo-status {
+  color: #f87171;
+}
+
+.gpt-plan-todo-title {
+  font-weight: 600;
+  color: #e4e4e7;
+}
+
+.gpt-plan-todo-detail {
+  grid-column: 2;
+  color: #71717a;
+  font-size: 0.7rem;
+  margin-top: 0.15rem;
+}
+
+.gpt-project-list {
+  list-style: none;
+  margin: 0 0 0.35rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.gpt-project-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.gpt-project-row.active {
+  border-color: #ffffff28;
+  background: #ffffff0a;
+}
+
+.gpt-project-main {
+  flex: 1;
+  min-width: 0;
+  display: flex !important;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.45rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #ececec;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.gpt-project-main:hover {
+  background: #ffffff0d;
+}
+
+.gpt-project-lobster {
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+
+.gpt-project-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gpt-project-del {
+  flex-shrink: 0;
+  width: 1.65rem;
+  height: 1.65rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #acacbe;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.65;
+}
+
+.gpt-project-del:hover {
+  background: #ffffff12;
+  color: #fca5a5;
+  opacity: 1;
+}
+
+.gpt-project-new {
+  margin-bottom: 0.15rem;
+}
+
+.gpt-thinking-bar {
+  flex-shrink: 0;
+  margin: 0 0.75rem 0.35rem;
+  max-width: 48rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: calc(100% - 1.5rem);
+  border: 1px solid #ffffff18;
+  border-radius: 10px;
+  background: #2a2a32;
+  font-size: 0.82rem;
+  color: #d4d4d8;
+}
+
+.gpt-thinking-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.gpt-thinking-summary::-webkit-details-marker {
+  display: none;
+}
+
+.gpt-thinking-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #ffffff35;
+  border-top-color: #ececec;
+  border-radius: 50%;
+  animation: gpt-thinking-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+.gpt-thinking-spinner-off {
+  animation: none;
+  opacity: 0.45;
+  border-top-color: #ffffff35;
+}
+
+@keyframes gpt-thinking-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gpt-thinking-body {
+  padding: 0 0.65rem 0.55rem;
+  border-top: 1px solid #ffffff10;
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.gpt-thinking-steps {
+  margin: 0.35rem 0 0;
+  padding: 0 0 0 1rem;
+  list-style: disc;
+}
+
+.gpt-thinking-step-title {
+  font-weight: 600;
+  color: #ececec;
+}
+
+.gpt-thinking-step-pre {
+  margin: 0.2rem 0 0.5rem;
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #a1a1aa;
+  max-height: 4.5rem;
+  overflow: hidden;
+}
+
+.gpt-turn-stack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-start;
+}
+
+.gpt-turn-stack-user {
+  align-items: flex-end;
+}
+
+.gpt-turn-stack-user .gpt-turn-label {
+  text-align: right;
+}
+
+.gpt-user-turn-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 100%;
+  max-width: min(96%, min(96vw, 52rem));
+  gap: 0.45rem;
+}
+
+.gpt-user-bubble-exterior {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.gpt-user-bubble-surface {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.gpt-bubble-actions-outside {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.38rem;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: min(92%, min(96vw, 48rem));
+  padding: 0 0.15rem;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.gpt-bubble-actions-user-outside {
+  margin-top: 0.1rem;
+}
+
+.gpt-user-bubble-exterior:hover .gpt-bubble-actions-outside,
+.gpt-user-bubble-exterior:focus-within .gpt-bubble-actions-outside {
+  opacity: 1;
+}
+
+.gpt-bubble-assistant-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+}
+
+.gpt-bubble-assistant-column .gpt-md-assistant {
+  padding-bottom: 0;
+  width: 100%;
+}
+
+.gpt-bubble-actions-assistant-outside {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.2rem;
+  padding-top: 0.2rem;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.gpt-bubble-assistant-column:hover .gpt-bubble-actions-assistant-outside,
+.gpt-bubble-assistant-column:focus-within .gpt-bubble-actions-assistant-outside {
+  opacity: 1;
+}
+
+.gpt-below-user-chain {
+  width: 100%;
+  max-width: min(96%, min(96vw, 52rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  align-items: stretch;
+}
+
+.gpt-thinking-inline {
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  border-style: dashed;
+  border-color: #ffffff22;
+  background: #2a2a3299;
+  opacity: 0.9;
+}
+
+.gpt-thinking-inline .gpt-thinking-summary {
+  color: #9ca3af;
+  font-size: 0.78rem;
+}
+
+.gpt-thinking-inline .gpt-thinking-step-title {
+  color: #a8a8b8;
+  font-weight: 500;
+}
+
+.gpt-thinking-stream {
+  margin: 0;
+  padding: 0.35rem 0.15rem 0.15rem;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: #c4c4d0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 16rem;
+  overflow-y: auto;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.gpt-thinking-md {
+  margin: 0;
+  padding: 0.25rem 0.1rem 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: #c4c4d0;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.gpt-thinking-md .wmde-markdown,
+.gpt-thinking-md .markdown-body {
+  background: transparent !important;
+  color: inherit !important;
+  font-size: inherit !important;
+}
+
+.gpt-thinking-md .markdown-body pre {
+  margin: 0.5rem 0 !important;
+  padding: 0.55rem 0.75rem !important;
+  font-size: 0.76rem !important;
+  border-radius: 8px !important;
+  border: 1px solid #ffffff18 !important;
+  background: #0d0d12 !important;
+}
+
+.gpt-thinking-hint {
+  font-size: 0.76rem !important;
+  opacity: 0.85;
+}
+
+.gpt-trace-inline {
+  margin: 0;
+  border: 1px solid #ffffff12;
+  border-radius: 10px;
+  background: #25252c;
+  padding: 0 0.5rem 0.25rem;
+}
+
+.gpt-trace-inline .gpt-trace-summary {
+  padding: 0.35rem 0.45rem;
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+.gpt-trace-inline .gpt-trace-panel-body {
+  max-height: 200px;
+  border-left-color: #ffffff0f;
+}
+
+
+.gpt-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff12;
+  color: #c4c4ce;
+  overflow: hidden;
+}
+
+.gpt-avatar-assistant {
+  background: #fff2e8;
+}
+
+.gpt-avatar-img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.gpt-avatar-png {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.gpt-bubble-wrap {
+  position: relative;
+  width: 100%;
+  max-width: min(85%, 32rem);
+}
+
+.gpt-turn-stack-assistant .gpt-bubble-wrap {
+  max-width: 100%;
+}
+
+
+.gpt-bubble-actions {
+  position: absolute;
+  bottom: 0.35rem;
+  display: flex;
+  gap: 0.12rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 2;
+}
+
+.gpt-bubble-wrap:hover .gpt-bubble-actions,
+.gpt-bubble-wrap:focus-within .gpt-bubble-actions {
+  opacity: 1;
+}
+
+.gpt-bubble-actions-user {
+  right: 0.35rem;
+}
+
+.gpt-bubble-actions-assistant {
+  left: 0;
+}
+
+.gpt-bubble-iconbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: #00000045;
+  color: #d4d4d8;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.gpt-bubble-iconbtn:hover:not(:disabled) {
+  background: #00000062;
+  color: #fff;
+}
+
+.gpt-bubble-iconbtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.gpt-bubble-iconbtn.danger:hover:not(:disabled) {
+  color: #fca5a5;
+}
+
+.gpt-session-hover-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.08rem;
+  padding-right: 0.1rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.gpt-session-row:hover .gpt-session-hover-actions,
+.gpt-session-row:focus-within .gpt-session-hover-actions {
+  opacity: 1;
+}
+
+.gpt-session-iconbtn {
+  width: 1.45rem;
+  height: 1.45rem;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #acacbe;
+  font-size: 0.72rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gpt-session-iconbtn:hover:not(:disabled) {
+  background: #ffffff14;
+  color: #ececec;
+}
+
+.gpt-session-iconbtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.gpt-session-iconbtn.danger:hover:not(:disabled) {
+  color: #fca5a5;
+}
+
+.gpt-session-iconbtn svg {
+  width: 12px;
+  height: 12px;
+}
+
+@media (max-width: 640px) {
+  .gpt-avatar-user {
+    display: none;
+  }
+
+  .gpt-thinking-bar {
+    width: calc(100% - 1rem);
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+  }
+}
+
+.gpt-sidebar-top {
+  flex-shrink: 0;
+  padding: 0.75rem;
+  padding-bottom: 0.35rem;
+}
+
+.gpt-project-bar {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.gpt-project-select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.45rem;
+  border-radius: 8px;
+  border: 1px solid #ffffff1a;
+  background: #212121;
+  color: #ececec;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.gpt-project-add {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  border: 1px solid #ffffff1a;
+  background: #2f2f2f;
+  color: #ececec;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gpt-project-add:hover {
+  background: #3f3f3f;
+}
+
+html[data-theme="light"] .gpt-project-select {
+  background: #fff;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-project-add {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-project-add:hover {
+  background: #e4e4e7;
+}
+
+.gpt-sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 0.75rem 0.75rem;
+  mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 1.5rem), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 calc(100% - 1.5rem), transparent 100%);
+}
+
+.gpt-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.gpt-session-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.2rem;
+}
+
+.gpt-session-main {
+  flex: 1;
+  min-width: 0;
+  display: flex !important;
+  align-items: center;
+}
+
+.gpt-session-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  width: 100%;
+}
+
+.gpt-session-actions {
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.gpt-session-more {
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #acacbe;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.gpt-session-more:hover {
+  background: #ffffff14;
+  color: #ececec;
+}
+
+.gpt-session-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 0.2rem;
+  min-width: 8.5rem;
+  background: #2f2f2f;
+  border: 1px solid #ffffff1a;
+  border-radius: 8px;
+  padding: 0.25rem;
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.gpt-session-dropdown button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #ececec;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.gpt-session-dropdown button:hover:not(:disabled) {
+  background: #ffffff10;
+}
+
+.gpt-session-dropdown button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.gpt-session-dropdown button.danger:hover:not(:disabled) {
+  color: #fca5a5;
+}
+
+.gpt-sidebar-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.5rem 0.65rem;
+  border-top: 1px solid #ffffff0d;
+  background: #171717;
+}
+
+.gpt-footer-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #acacbe;
+  cursor: pointer;
+}
+
+.gpt-footer-icon:hover {
+  background: #ffffff0d;
+  color: #ececec;
+}
+
+.gpt-welcome {
+  text-align: center;
+  padding: 2.5rem 1rem 1rem;
+  max-width: 36rem;
+  margin: 0 auto;
+}
+
+.gpt-welcome-title {
+  margin: 0 0 0.65rem;
+  font-size: 1.65rem;
+  font-weight: 600;
+  color: #ececec;
+  line-height: 1.25;
+}
+
+.gpt-welcome-sub {
+  margin: 0 0 1.5rem;
+  font-size: 0.9rem;
+  color: #acacbe;
+  line-height: 1.5;
+}
+
+.gpt-welcome-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.gpt-welcome-chip {
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid #ffffff1a;
+  background: #40414f;
+  color: #ececec;
+  font-size: 0.85rem;
+  cursor: pointer;
+  max-width: 100%;
+  text-align: left;
+}
+
+.gpt-welcome-chip:hover {
+  background: #4e4f5e;
+  border-color: #ffffff2a;
+}
+
+.gpt-trace-details-muted .gpt-trace-summary {
+  opacity: 0.55;
+  font-size: 0.7rem;
+}
+
+/* —— 浅色主题（html[data-theme="light"]，由 AgentConsole 写入 documentElement）—— */
+html[data-theme="light"] .gpt-app {
+  background: #fff;
+  color: #0d0d0d;
+}
+
+html[data-theme="light"] .gpt-topbar {
+  background: #fff;
+  border-bottom-color: #e5e5e5;
+}
+
+html[data-theme="light"] .gpt-topbar .agent-btn {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-topbar .agent-btn:hover:not(:disabled) {
+  background: #e4e4e7;
+  border-color: #a1a1aa;
+}
+
+html[data-theme="light"] .gpt-topbar .agent-btn.ghost {
+  background: transparent;
+}
+
+html[data-theme="light"] .gpt-app .agent-sidebar {
+  background: #f7f7f8;
+  border-right-color: #e5e5e5;
+}
+
+html[data-theme="light"] .gpt-sidebar-footer {
+  background: #f7f7f8;
+  border-top-color: #e5e5e5;
+}
+
+html[data-theme="light"] .gpt-new-chat {
+  border-color: #d4d4d8 !important;
+  background: #fff !important;
+  color: #18181b !important;
+}
+
+html[data-theme="light"] .gpt-new-chat:hover {
+  background: #f4f4f5 !important;
+}
+
+html[data-theme="light"] .gpt-app .agent-session-list button,
+html[data-theme="light"] .gpt-app .agent-skill-list button {
+  color: #3f3f46;
+}
+
+html[data-theme="light"] .gpt-app .agent-session-list button:hover,
+html[data-theme="light"] .gpt-app .agent-skill-list button:hover {
+  background: #ececf1;
+}
+
+html[data-theme="light"] .gpt-app .agent-session-list button.active,
+html[data-theme="light"] .gpt-app .agent-skill-list button.active {
+  background: #ececf1;
+  color: #18181b;
+  box-shadow: inset 3px 0 0 0 #10a37f;
+}
+
+html[data-theme="light"] .gpt-chat {
+  background: #fff;
+}
+
+html[data-theme="light"] .gpt-trace-panel {
+  border-bottom-color: #e5e5e5;
+}
+
+html[data-theme="light"] .gpt-trace-summary {
+  color: #71717a;
+}
+
+html[data-theme="light"] .gpt-trace-panel-body {
+  border-left-color: #e4e4e7;
+}
+
+html[data-theme="light"] .gpt-trace-empty {
+  color: #71717a;
+}
+
+html[data-theme="light"] .gpt-trace-group-summary {
+  color: #3f3f46;
+}
+
+html[data-theme="light"] .gpt-trace-group-count {
+  background: #f4f4f5;
+  color: #52525b;
+}
+
+html[data-theme="light"] .gpt-trace-group-body {
+  border-left-color: #e4e4e7;
+}
+
+html[data-theme="light"] .gpt-trace-item-summary {
+  color: #52525b;
+}
+
+html[data-theme="light"] .gpt-trace-item-body {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #3f3f46;
+}
+
+html[data-theme="light"] .gpt-welcome-title {
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-welcome-sub {
+  color: #52525b;
+}
+
+html[data-theme="light"] .gpt-welcome-chip {
+  background: #fff;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-welcome-chip:hover {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+}
+
+html[data-theme="light"] .gpt-turn-label {
+  color: #71717a;
+}
+
+html[data-theme="light"] .gpt-version-tag {
+  color: #71717a;
+}
+
+html[data-theme="light"] .gpt-project-row.active {
+  border-color: #d4d4d8;
+  background: #ececf1;
+}
+
+html[data-theme="light"] .gpt-project-main {
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-project-del {
+  color: #52525b;
+}
+
+html[data-theme="light"] .gpt-thinking-bar {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #3f3f46;
+}
+
+html[data-theme="light"] .gpt-thinking-step-title {
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-avatar {
+  background: #e4e4e7;
+  color: #52525b;
+}
+
+html[data-theme="light"] .gpt-bubble-iconbtn {
+  background: rgba(255, 255, 255, 0.92);
+  color: #52525b;
+  border: 1px solid #e4e4e7;
+}
+
+html[data-theme="light"] .gpt-session-iconbtn {
+  color: #71717a;
+}
+
+html[data-theme="light"] .gpt-md-user {
+  background: #fff;
+  color: #18181b;
+  border: 1px solid #e4e4e7;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+html[data-theme="light"] .gpt-zone-header {
+  color: #52525b;
+}
+
+html[data-theme="light"] .gpt-zone-header:hover {
+  background: #f4f4f5;
+}
+
+html[data-theme="light"] .gpt-row-kebab {
+  color: #71717a;
+}
+
+html[data-theme="light"] .gpt-row-menu-dropdown {
+  background: #fff;
+  border-color: #e4e4e7;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.1);
+}
+
+html[data-theme="light"] .gpt-row-menu-item {
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-row-menu-item:hover:not(:disabled) {
+  background: #f4f4f5;
+}
+
+html[data-theme="light"] .gpt-run-flow-wait {
+  background: #fafafa;
+  border-color: #d4d4d8;
+  color: #71717a;
+}
+
+html[data-theme="light"] .gpt-run-flow-panel {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+html[data-theme="light"] .gpt-run-flow-panel-sum {
+  color: #71717a;
+}
+
+html[data-theme="light"] .gpt-run-flow-step {
+  background: #fff;
+  border-color: #e4e4e7;
+}
+
+html[data-theme="light"] .gpt-run-flow-pre {
+  color: #52525b;
+}
+
+html[data-theme="light"] .gpt-run-flow-tool-h {
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-run-flow-panel-cursor {
+  background: linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
+  border-color: #d4d4d8;
+}
+
+html[data-theme="light"] .gpt-run-flow-plan-h {
+  color: #6d28d9;
+}
+
+html[data-theme="light"] .gpt-run-flow-plan-thought {
+  color: #52525b;
+}
+
+html[data-theme="light"] .gpt-plan-todo-item {
+  background: #fff;
+  border-color: #e4e4e7;
+}
+
+html[data-theme="light"] .gpt-plan-todo-title {
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-md-assistant {
+  background: transparent;
+  color: #18181b;
+  border: none;
+}
+
+html[data-theme="light"] .gpt-thinking-inline {
+  background: #fafafa;
+  border-color: #d4d4d8;
+}
+
+html[data-theme="light"] .gpt-trace-inline {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+html[data-theme="light"] .gpt-trace-inline .gpt-trace-summary {
+  color: #71717a;
+}
+
+html[data-theme="light"] .gpt-thinking-stream {
+  color: #52525b;
+}
+
+html[data-theme="light"] .gpt-thinking-md {
+  color: #52525b;
+}
+
+html[data-theme="light"] .gpt-thinking-md .markdown-body pre {
+  border-color: #e4e4e7 !important;
+  background: #f4f4f5 !important;
+}
+
+html[data-theme="light"] .gpt-thinking-hint {
+  color: #71717a !important;
+}
+
+html[data-theme="light"] .gpt-md-assistant .markdown-body pre {
+  border-color: #e4e4e7 !important;
+  background: #f4f4f5 !important;
+}
+
+html[data-theme="light"] .gpt-md-assistant pre .copied {
+  color: #18181b;
+  background: rgba(0, 0, 0, 0.06);
+  border-color: #d4d4d8;
+}
+
+html[data-theme="light"] .gpt-md-assistant pre .copied:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+html[data-theme="light"] .gpt-edit-textarea {
+  background: #fff;
+  color: #18181b;
+  border-color: #d4d4d8;
+}
+
+html[data-theme="light"] .gpt-btn-mini {
+  border-color: #d4d4d8;
+  color: #52525b;
+}
+
+html[data-theme="light"] .gpt-btn-mini:hover:not(:disabled) {
+  background: #f4f4f5;
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-compose-outer {
+  background: #fff;
+  border-top-color: #e5e5e5;
+}
+
+html[data-theme="light"] .gpt-input-row {
+  background: #fff;
+  border-color: #d4d4d8;
+  box-shadow: 0 0 0 1px #f4f4f5 inset;
+}
+
+html[data-theme="light"] .gpt-input-row:focus-within {
+  border-color: #a1a1aa;
+  box-shadow: 0 0 0 1px rgba(16, 163, 127, 0.25);
+}
+
+html[data-theme="light"] .gpt-input {
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-input::placeholder {
+  color: #71717a;
+}
+
+html[data-theme="light"] .gpt-send {
+  background: #18181b;
+  color: #fff;
+}
+
+html[data-theme="light"] .gpt-send:hover:not(:disabled) {
+  background: #27272a;
+}
+
+html[data-theme="light"] .gpt-session-more {
+  color: #71717a;
+}
+
+html[data-theme="light"] .gpt-session-more:hover {
+  background: #e4e4e7;
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-session-dropdown {
+  background: #fff;
+  border-color: #e4e4e7;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+html[data-theme="light"] .gpt-session-dropdown button {
+  color: #18181b;
+}
+
+html[data-theme="light"] .gpt-session-dropdown button:hover:not(:disabled) {
+  background: #f4f4f5;
+}
+
+html[data-theme="light"] .gpt-footer-icon {
+  color: #52525b;
+}
+
+html[data-theme="light"] .gpt-footer-icon:hover {
+  background: #e4e4e7;
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-linkbtn {
+  border-color: #d4d4d8;
+  color: #52525b;
+}
+
+html[data-theme="light"] .agent-side-h {
+  color: #71717a;
+}
+
+html[data-theme="light"] .agent-banner.err {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+/* —— 浅色：抽屉、弹层、模型选择器（与 gpt-app 一致）—— */
+html[data-theme="light"] .agent-drawer-back {
+  background: rgba(15, 23, 42, 0.35);
+}
+
+html[data-theme="light"] .agent-drawer {
+  background: #fff;
+  border-left-color: #e5e5e5;
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-drawer h2 {
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-drawer label {
+  color: #52525b;
+}
+
+html[data-theme="light"] .agent-drawer input,
+html[data-theme="light"] .agent-drawer textarea,
+html[data-theme="light"] .agent-drawer select {
+  background: #fff;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-settings-hint {
+  color: #71717a;
+}
+
+html[data-theme="light"] .agent-modal {
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-modal-close {
+  color: #71717a;
+}
+
+html[data-theme="light"] .agent-modal-close:hover {
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-modal label {
+  color: #52525b;
+}
+
+html[data-theme="light"] .agent-modal input,
+html[data-theme="light"] .agent-modal textarea,
+html[data-theme="light"] .agent-modal select {
+  background: #fff;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-preview {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #3f3f46;
+}
+
+html[data-theme="light"] .agent-skill-drawer-hint {
+  color: #71717a;
+}
+
+html[data-theme="light"] .agent-skill-new-fields label {
+  color: #52525b;
+}
+
+html[data-theme="light"] .agent-skill-new-fields input {
+  background: #fff;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-skill-mode-toggle button {
+  background: #fff;
+  border-color: #d4d4d8;
+  color: #52525b;
+}
+
+html[data-theme="light"] .agent-skill-mode-toggle button.active {
+  border-color: #10a37f;
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+html[data-theme="light"] .agent-md-preview-pane {
+  background: #fafafa;
+  border: 1px solid #e4e4e7;
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-model-trigger {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-model-trigger:hover:not(:disabled) {
+  background: #e4e4e7;
+  border-color: #a1a1aa;
+}
+
+html[data-theme="light"] .agent-model-trigger-label {
+  color: #71717a;
+}
+
+html[data-theme="light"] .agent-model-trigger-value {
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-model-panel {
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+html[data-theme="light"] .agent-model-presets button {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #3f3f46;
+}
+
+html[data-theme="light"] .agent-model-presets button:hover {
+  background: #e4e4e7;
+}
+
+html[data-theme="light"] .agent-model-presets button.active {
+  border-color: #10a37f;
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+html[data-theme="light"] .agent-model-custom input {
+  background: #fff;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-model-refresh {
+  background: #fff;
+  border-color: #d4d4d8;
+  color: #52525b;
+}
+
+html[data-theme="light"] .agent-model-extras {
+  border-bottom-color: #e4e4e7;
+}
+
+html[data-theme="light"] .agent-model-extras button {
+  color: #2563eb;
+}
+
+html[data-theme="light"] .agent-model-extras button:hover {
+  background: #f4f4f5;
+}
+
+html[data-theme="light"] .agent-model-extras button.active {
+  border-color: #10a37f;
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+/* 浅色：抽屉/弹层内次要按钮（取消、关闭）可读 */
+html[data-theme="light"] .agent-drawer .agent-btn,
+html[data-theme="light"] .agent-modal .agent-btn {
+  color: #18181b;
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+}
+
+html[data-theme="light"] .agent-drawer .agent-btn:hover:not(:disabled),
+html[data-theme="light"] .agent-modal .agent-btn:hover:not(:disabled) {
+  background: #e4e4e7;
+  border-color: #a1a1aa;
+  color: #18181b;
+}
+
+html[data-theme="light"] .agent-drawer .agent-btn.ghost,
+html[data-theme="light"] .agent-modal .agent-btn.ghost {
+  color: #18181b;
+  background: #fff;
+  border-color: #d4d4d8;
+}
+
+html[data-theme="light"] .agent-drawer .agent-btn.ghost:hover:not(:disabled),
+html[data-theme="light"] .agent-modal .agent-btn.ghost:hover:not(:disabled) {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+}
+
+html[data-theme="light"] .agent-drawer .agent-btn.primary,
+html[data-theme="light"] .agent-modal .agent-btn.primary {
+  color: #fff;
+  background: #10a37f;
+  border-color: #0d8f6e;
+}
+
+html[data-theme="light"] .agent-drawer .agent-btn.primary:hover:not(:disabled),
+html[data-theme="light"] .agent-modal .agent-btn.primary:hover:not(:disabled) {
+  background: #0d8f6e;
+  color: #fff;
+}
+
+html[data-theme="light"] .agent-drawer .agent-drawer-actions,
+html[data-theme="light"] .agent-modal .agent-drawer-actions {
+  color: #18181b;
+}
+
+/* 深色：抽屉/弹层内按钮保持浅色字（避免被全局浅色规则污染） */
+html[data-theme="dark"] .agent-drawer .agent-btn,
+html[data-theme="dark"] .agent-modal .agent-btn {
+  color: #fafafa;
+  background: #18181b;
+  border-color: #3f3f46;
+}
+
+html[data-theme="dark"] .agent-drawer .agent-btn:hover:not(:disabled),
+html[data-theme="dark"] .agent-modal .agent-btn:hover:not(:disabled) {
+  background: #27272a;
+  border-color: #52525b;
+  color: #fafafa;
+}
+
+html[data-theme="dark"] .agent-drawer .agent-btn.ghost,
+html[data-theme="dark"] .agent-modal .agent-btn.ghost {
+  color: #e4e4e7;
+  background: transparent;
+  border-color: #52525b;
+}
+
+html[data-theme="dark"] .agent-drawer .agent-btn.ghost:hover:not(:disabled),
+html[data-theme="dark"] .agent-modal .agent-btn.ghost:hover:not(:disabled) {
+  background: #27272a;
+  color: #fafafa;
+}
+
+html[data-theme="dark"] .agent-drawer .agent-btn.primary,
+html[data-theme="dark"] .agent-modal .agent-btn.primary {
+  color: #fff;
+}
+
+html[data-theme="light"] .agent-md-editor-wrap .w-md-editor,
+html[data-theme="light"] .agent-drawer-skill .w-md-editor {
+  background: #fff !important;
+  border-color: #e4e4e7 !important;
+}
+
+html[data-theme="light"] .agent-md-editor-wrap .w-md-editor-toolbar,
+html[data-theme="light"] .agent-drawer-skill .w-md-editor-toolbar {
+  background: #fafafa !important;
+  border-bottom-color: #e4e4e7 !important;
+}
+
+html[data-theme="light"] .agent-md-editor-wrap .w-md-editor-text,
+html[data-theme="light"] .agent-drawer-skill .w-md-editor-text,
+html[data-theme="light"] .agent-md-editor-wrap .w-md-editor-text-pre,
+html[data-theme="light"] .agent-drawer-skill .w-md-editor-text-pre {
+  color: #18181b !important;
+  background: #fff !important;
+}
+
+html[data-theme="light"] .agent-drawer-skill .agent-md-preview-pane {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
