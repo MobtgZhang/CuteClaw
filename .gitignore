@@ -2,3 +2,7 @@
 zig-out/
 *.o
 cache/
+# 本地应用状态，勿提交
+.cuteclaw/
+# 本地一次性推送脚本，勿提交
+push.sh
