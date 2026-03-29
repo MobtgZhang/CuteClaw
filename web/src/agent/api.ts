@@ -117,6 +117,8 @@ export const agentApi = {
       }),
     ),
   getSettings: () => j<AgentSettings>(fetch("/agent/settings")),
+  /** 向当前设置中的 OpenAI 兼容 Base 请求 GET /v1/models（经宿主转发，密钥不出浏览器） */
+  listOpenAiModels: () => j<{ models: string[] }>(fetch("/agent/openai/models")),
   putSettings: (s: AgentSettingsPut) =>
     j<AgentSettings>(
       fetch("/agent/settings", {

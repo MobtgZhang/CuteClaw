@@ -479,6 +479,86 @@ td {
   font-size: 0.8rem !important;
 }
 
+/* 仅编辑模式：彻底隐藏右侧预览槽（absolute 占位仍可能露出一条缝或纯黑块） */
+.agent-md-editor-wrap .w-md-editor-show-edit .w-md-editor-preview {
+  display: none !important;
+  visibility: hidden !important;
+  position: absolute !important;
+  inset: 0 auto 0 100% !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 编辑区内层统一背景，避免 flex 拉伸出现「另一块」纯黑/透明露底 */
+.agent-md-editor-wrap .w-md-editor-content,
+.agent-md-editor-wrap .w-md-editor-area,
+.agent-md-editor-wrap .w-md-editor-input,
+.agent-md-editor-wrap .w-md-editor-text {
+  background-color: #0a0a0b !important;
+}
+
+/* highlightEnable=false 时为普通 textarea，直接指定字色与光标（不再依赖透明叠字层） */
+html[data-theme="dark"] .agent-md-editor-wrap textarea.w-md-editor-text-input {
+  color: #e4e4e7 !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  caret-color: #fafafa;
+  background: transparent !important;
+}
+
+html[data-theme="light"] .agent-md-editor-wrap textarea.w-md-editor-text-input {
+  color: #18181b !important;
+  -webkit-text-fill-color: #18181b !important;
+  caret-color: #18181b;
+  background: transparent !important;
+}
+
+/* 编辑模式下单栏占满内容区，减少底部未填充区域的怪异留白 */
+.agent-md-editor-wrap .w-md-editor-show-edit .w-md-editor-content {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+}
+
+.agent-md-editor-wrap .w-md-editor-show-edit .w-md-editor-input {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.agent-md-editor-wrap .w-md-editor-show-edit .w-md-editor-area {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.agent-md-editor-wrap .w-md-editor-show-edit .w-md-editor-text {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.agent-md-editor-wrap .w-md-editor-show-edit .w-md-editor-text textarea.w-md-editor-text-input {
+  flex: 1 1 auto !important;
+  min-height: 12rem !important;
+  height: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
 .agent-model-popover-root {
   position: relative;
 }
@@ -728,8 +808,10 @@ td {
   overflow: auto !important;
 }
 
-.agent-drawer-skill .agent-md-editor-skill .w-md-editor-text {
-  min-height: 100% !important;
+/* 与上方 .w-md-editor-show-edit flex 链一致，避免 min-height:100% 撑出大块同色「黑底」观感 */
+.agent-drawer-skill .agent-md-editor-skill .w-md-editor-show-edit .w-md-editor-text {
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
 }
 
 .agent-skill-mode-toggle {
@@ -3186,12 +3268,16 @@ html[data-theme="light"] .agent-drawer-skill .w-md-editor-toolbar {
   border-bottom-color: #e4e4e7 !important;
 }
 
+html[data-theme="light"] .agent-md-editor-wrap .w-md-editor-content,
+html[data-theme="light"] .agent-md-editor-wrap .w-md-editor-area,
+html[data-theme="light"] .agent-md-editor-wrap .w-md-editor-input,
 html[data-theme="light"] .agent-md-editor-wrap .w-md-editor-text,
 html[data-theme="light"] .agent-drawer-skill .w-md-editor-text,
 html[data-theme="light"] .agent-md-editor-wrap .w-md-editor-text-pre,
 html[data-theme="light"] .agent-drawer-skill .w-md-editor-text-pre {
   color: #18181b !important;
   background: #fff !important;
+  background-color: #fff !important;
 }
 
 html[data-theme="light"] .agent-drawer-skill .agent-md-preview-pane {

@@ -88,7 +88,7 @@ export function ModelPopover({ model, onApply, disabled, extraModels, onRefresh 
                 className="agent-model-refresh"
                 disabled={refreshing || disabled}
                 onClick={() => void handleRefresh()}
-                title="从服务端读取当前模型并加入列表"
+                title="从当前 API Base 拉取 /v1/models 并刷新列表（需已配置密钥）"
               >
                 {refreshing ? "刷新中…" : "刷新"}
               </button>

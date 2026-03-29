@@ -457,15 +457,19 @@ export function AgentConsole() {
     const s = await agentApi.getSettings();
     setSettings(s);
     setDraftSettings((d) => ({ ...d, model: s.model }));
-    const m = s.model?.trim();
-    if (m) {
-      setExtraModels((prev) => {
-        if (prev.includes(m)) return prev;
-        const next = [...prev, m];
-        saveStoredModels(next);
-        return next;
-      });
+    let remote: string[] = [];
+    try {
+      const r = await agentApi.listOpenAiModels();
+      remote = Array.isArray(r.models) ? r.models.filter((x) => typeof x === "string" && x.trim()) : [];
+    } catch {
+      /* 无密钥或上游失败时仍合并当前 model */
     }
+    const m = s.model?.trim();
+    setExtraModels((prev) => {
+      const next = [...new Set([...remote, ...(m ? [m] : []), ...prev])];
+      saveStoredModels(next);
+      return next;
+    });
   }, []);
 
   const persistSession = useCallback(
@@ -867,6 +871,7 @@ export function AgentConsole() {
       /* */
     }
     document.documentElement.dataset.theme = theme;
+    document.documentElement.setAttribute("data-color-mode", theme === "light" ? "light" : "dark");
   }, [theme]);
 
   const startEditMessage = (m: Msg) => {
@@ -1875,6 +1880,8 @@ export function AgentConsole() {
                     minHeight={200}
                     visibleDragbar={false}
                     preview="edit"
+                    data-color-mode={mdColorMode}
+                    highlightEnable={false}
                   />
                 </div>
               ) : (

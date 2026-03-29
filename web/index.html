@@ -11,6 +11,16 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <script>
+      (function () {
+        try {
+          var v = localStorage.getItem("cuteclaw-agent-theme");
+          var t = v === "light" ? "light" : "dark";
+          document.documentElement.dataset.theme = t;
+          document.documentElement.setAttribute("data-color-mode", t === "light" ? "light" : "dark");
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
