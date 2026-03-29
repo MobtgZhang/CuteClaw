@@ -620,6 +620,54 @@ app.put("/agent/settings", async (request, reply) => {
   return publicSettings(normalized);
 });
 
+function parseOpenAiModelsResponse(raw: unknown): string[] {
+  const ids: string[] = [];
+  const add = (s: unknown) => {
+    if (typeof s === "string" && s.trim()) ids.push(s.trim());
+  };
+  if (!raw || typeof raw !== "object") return [...new Set(ids)];
+  const o = raw as Record<string, unknown>;
+  if (Array.isArray(o.data)) {
+    for (const x of o.data) {
+      if (x && typeof x === "object" && typeof (x as { id?: unknown }).id === "string") add((x as { id: string }).id);
+    }
+  }
+  if (Array.isArray(o.models)) {
+    for (const x of o.models) {
+      if (typeof x === "string") add(x);
+      else if (x && typeof x === "object" && typeof (x as { id?: unknown }).id === "string") add((x as { id: string }).id);
+    }
+  }
+  return [...new Set(ids)];
+}
+
+app.get("/agent/openai/models", async (_request, reply) => {
+  const s = await loadEffectiveSettings();
+  const { key, base: cfgBase } = await readApiKey(s.cuteclawConfigPath, s.openaiApiKey);
+  const base = (s.openaiBase && s.openaiBase.trim()) || cfgBase;
+  if (!key) {
+    reply.code(400);
+    return { error: "未配置 API Key，无法拉取模型列表（设置中填写密钥或配置 api_key_file / OPENAI_API_KEY）" };
+  }
+  const url = `${String(base).replace(/\/$/, "")}/models`;
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      reply.code(502);
+      return { error: `上游返回 ${res.status}`, detail: t.slice(0, 400) };
+    }
+    const j = (await res.json()) as unknown;
+    return { models: parseOpenAiModelsResponse(j) };
+  } catch (e) {
+    reply.code(502);
+    return { error: String(e) };
+  }
+});
+
 app.get("/agent/tree", async (request, reply) => {
   const q = request.query as { bucket?: string; rel?: string };
   const bucket = q.bucket ?? "skills";
