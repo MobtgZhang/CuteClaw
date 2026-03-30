@@ -160,6 +160,8 @@ export const agentApi = {
       content: string;
       /** 仅 assistant：控制台执行轨（思考/计划/工具），由服务端裁剪体积 */
       agentTrace?: unknown[];
+      /** 仅 user：编辑问题产生的分支快照（variants + activeIndex） */
+      userEditHistory?: unknown;
     }[],
   ) =>
     j<{ ok: boolean; count: number }>(

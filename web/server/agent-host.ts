@@ -913,6 +913,66 @@ function sanitizeAgentTracePayload(raw: unknown): unknown[] | undefined {
   return slice;
 }
 
+const MAX_USER_EDIT_VARIANTS = 32;
+const MAX_USER_EDIT_TAIL_MSGS = 600;
+const MAX_USER_EDIT_NEST_DEPTH = 8;
+const MAX_USER_EDIT_MSG_CONTENT_CHARS = 400_000;
+
+function sanitizeNestedSessionMessage(
+  raw: unknown,
+  depth: number,
+): Record<string, unknown> | undefined {
+  if (depth > MAX_USER_EDIT_NEST_DEPTH || !raw || typeof raw !== "object") return undefined;
+  const m = raw as { role?: unknown; content?: unknown; agentTrace?: unknown; userEditHistory?: unknown };
+  if (m.role !== "user" && m.role !== "assistant") return undefined;
+  if (typeof m.content !== "string") return undefined;
+  const content =
+    m.content.length > MAX_USER_EDIT_MSG_CONTENT_CHARS
+      ? m.content.slice(0, MAX_USER_EDIT_MSG_CONTENT_CHARS)
+      : m.content;
+  const out: Record<string, unknown> = { role: m.role, content };
+  if (m.role === "assistant" && m.agentTrace !== undefined) {
+    const tr = sanitizeAgentTracePayload(m.agentTrace);
+    if (tr) out.agentTrace = tr;
+  }
+  if (m.role === "user" && m.userEditHistory !== undefined) {
+    const uh = sanitizeUserEditHistoryPayload(m.userEditHistory, depth + 1);
+    if (uh) out.userEditHistory = uh;
+  }
+  return out;
+}
+
+/** 用户气泡「编辑分支」元数据，挂在 user_message.payload.userEditHistory */
+function sanitizeUserEditHistoryPayload(raw: unknown, depth: number): Record<string, unknown> | undefined {
+  if (depth > MAX_USER_EDIT_NEST_DEPTH || !raw || typeof raw !== "object") return undefined;
+  const o = raw as { variants?: unknown; activeIndex?: unknown };
+  if (!Array.isArray(o.variants)) return undefined;
+  const activeIndex = typeof o.activeIndex === "number" && Number.isFinite(o.activeIndex) ? Math.floor(o.activeIndex) : 0;
+  const variants: Record<string, unknown>[] = [];
+  for (let vi = 0; vi < Math.min(o.variants.length, MAX_USER_EDIT_VARIANTS); vi++) {
+    const v = o.variants[vi];
+    if (!v || typeof v !== "object") continue;
+    const vo = v as { userContent?: unknown; tail?: unknown };
+    const userContent =
+      typeof vo.userContent === "string"
+        ? vo.userContent.length > MAX_USER_EDIT_MSG_CONTENT_CHARS
+          ? vo.userContent.slice(0, MAX_USER_EDIT_MSG_CONTENT_CHARS)
+          : vo.userContent
+        : "";
+    const tail: Record<string, unknown>[] = [];
+    if (Array.isArray(vo.tail)) {
+      for (let ti = 0; ti < Math.min(vo.tail.length, MAX_USER_EDIT_TAIL_MSGS); ti++) {
+        const line = sanitizeNestedSessionMessage(vo.tail[ti], depth + 1);
+        if (line) tail.push(line);
+      }
+    }
+    variants.push({ userContent, tail });
+  }
+  if (variants.length === 0) return undefined;
+  const ai = Math.max(0, Math.min(activeIndex, variants.length - 1));
+  return { variants, activeIndex: ai };
+}
+
 app.put("/agent/history/session", async (request, reply) => {
   const q = request.query as { id?: string };
   if (!q.id || !/^[\w.-]+$/.test(q.id)) {
@@ -928,6 +988,7 @@ app.put("/agent/history/session", async (request, reply) => {
     role?: string;
     content?: unknown;
     agentTrace?: unknown;
+    userEditHistory?: unknown;
   }[];
   if (messages.length > MAX_SESSION_LINES) {
     reply.code(400);
@@ -950,6 +1011,10 @@ app.put("/agent/history/session", async (request, reply) => {
     if (m.role === "assistant" && m.agentTrace !== undefined) {
       const tr = sanitizeAgentTracePayload(m.agentTrace);
       if (tr) payload.agentTrace = tr;
+    }
+    if (m.role === "user" && m.userEditHistory !== undefined) {
+      const uh = sanitizeUserEditHistoryPayload(m.userEditHistory, 0);
+      if (uh) payload.userEditHistory = uh;
     }
     lines.push(
       JSON.stringify({
