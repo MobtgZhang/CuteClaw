@@ -50,7 +50,15 @@ type Msg = {
   content: string;
   /** 该轮助手回复的执行轨（思考 / 计划 / 工具），落盘在 agentTrace */
   agentTrace?: RunFlowItem[];
+  /** 仅 user：修改提问产生的多版本与对应后续气泡 */
+  userEditHistory?: {
+    variants: Array<{ userContent: string; tail: Msg[] }>;
+    activeIndex: number;
+  };
 };
+
+type UserEditHistory = NonNullable<Msg["userEditHistory"]>;
+type UserEditVariant = UserEditHistory["variants"][number];
 
 function newLocalId(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID
@@ -66,15 +74,116 @@ function clampTraceForDisk(t: RunFlowItem[] | undefined): RunFlowItem[] | undefi
   return t.slice(-MAX_SAVED_TRACE_ITEMS);
 }
 
+function cloneMsgs(msgs: Msg[]): Msg[] {
+  try {
+    return structuredClone(msgs);
+  } catch {
+    return JSON.parse(JSON.stringify(msgs)) as Msg[];
+  }
+}
+
+/** 将当前线性列表中，每条 user 的「当前分支」后缀写回其 active variant，便于落盘与再编辑 */
+function syncActiveUserVariantTails(msgs: Msg[]): Msg[] {
+  return msgs.map((m, i) => {
+    if (m.role !== "user" || !m.userEditHistory) return m;
+    const h = m.userEditHistory;
+    const ai = h.activeIndex;
+    if (ai < 0 || ai >= h.variants.length) return m;
+    const tailNow = msgs.slice(i + 1);
+    const newVariants = h.variants.map((variant, vi) =>
+      vi === ai ? { ...variant, tail: cloneMsgs(tailNow) } : variant,
+    );
+    return { ...m, userEditHistory: { ...h, variants: newVariants } };
+  });
+}
+
+function serializeMsgBranchForDisk(m: Msg): Record<string, unknown> {
+  const o: Record<string, unknown> = { role: m.role, content: m.content };
+  if (m.role === "assistant") {
+    const c = clampTraceForDisk(m.agentTrace);
+    if (c?.length) o.agentTrace = c;
+  }
+  if (m.role === "user" && m.userEditHistory) {
+    o.userEditHistory = {
+      activeIndex: m.userEditHistory.activeIndex,
+      variants: m.userEditHistory.variants.map((v) => ({
+        userContent: v.userContent,
+        tail: v.tail.map((t) => serializeMsgBranchForDisk(t)),
+      })),
+    };
+  }
+  return o;
+}
+
 function messagesToDisk(
   msgs: Msg[],
-): { role: "user" | "assistant"; content: string; agentTrace?: RunFlowItem[] }[] {
-  return msgs.map(({ role, content, agentTrace }) => {
-    const c = clampTraceForDisk(agentTrace);
-    if (role === "assistant" && c?.length)
-      return { role, content, agentTrace: c };
-    return { role, content };
+): {
+  role: "user" | "assistant";
+  content: string;
+  agentTrace?: RunFlowItem[];
+  userEditHistory?: Record<string, unknown>;
+}[] {
+  const synced = syncActiveUserVariantTails(msgs);
+  return synced.map((m) => {
+    if (m.role === "assistant") {
+      const c = clampTraceForDisk(m.agentTrace);
+      if (c?.length) return { role: m.role, content: m.content, agentTrace: c };
+      return { role: m.role, content: m.content };
+    }
+    if (m.role === "user" && m.userEditHistory) {
+      return {
+        role: m.role,
+        content: m.content,
+        userEditHistory: serializeMsgBranchForDisk(m).userEditHistory as Record<string, unknown>,
+      };
+    }
+    return { role: m.role, content: m.content };
   });
+}
+
+/** 从会话 JSONL 还原 Msg 树（含嵌套 userEditHistory），并分配新的 localId */
+function hydrateMsgFromPayload(raw: unknown): Msg | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if (o.role !== "user" && o.role !== "assistant") return null;
+  if (typeof o.content !== "string") return null;
+  const role = o.role as "user" | "assistant";
+  let userEditHistory: UserEditHistory | undefined;
+  if (role === "user" && o.userEditHistory && typeof o.userEditHistory === "object") {
+    const uh = o.userEditHistory as Record<string, unknown>;
+    const vr = uh.variants;
+    const aiRaw = uh.activeIndex;
+    const activeIndex =
+      typeof aiRaw === "number" && Number.isFinite(aiRaw) ? Math.floor(aiRaw) : 0;
+    if (Array.isArray(vr) && vr.length > 0) {
+      const variants: UserEditVariant[] = [];
+      for (const item of vr) {
+        if (!item || typeof item !== "object") continue;
+        const v = item as Record<string, unknown>;
+        const userContent = typeof v.userContent === "string" ? v.userContent : "";
+        const tail: Msg[] = [];
+        if (Array.isArray(v.tail)) {
+          for (const t of v.tail) {
+            const hm = hydrateMsgFromPayload(t);
+            if (hm) tail.push(hm);
+          }
+        }
+        variants.push({ userContent, tail });
+      }
+      if (variants.length > 0) {
+        const ai = Math.max(0, Math.min(activeIndex, variants.length - 1));
+        userEditHistory = { variants, activeIndex: ai };
+      }
+    }
+  }
+  const agentTrace = role === "assistant" ? deserializeAgentTrace(o.agentTrace) : undefined;
+  return {
+    localId: newLocalId(),
+    role,
+    content: o.content,
+    agentTrace,
+    userEditHistory,
+  };
 }
 
 function deserializeAgentTrace(raw: unknown): RunFlowItem[] | undefined {
@@ -213,12 +322,27 @@ function IconRegenerate() {
   );
 }
 
-function IconTrash() {
+function IconExport() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" />
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" x2="12" y1="15" y2="3" />
     </svg>
   );
+}
+
+function downloadUtf8File(filename: string, text: string, mime: string) {
+  const blob = new Blob([text], { type: `${mime};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function AgentConsole() {
@@ -685,7 +809,7 @@ export function AgentConsole() {
               }
             : m,
         );
-        const trimmed = trimTrailingEmptyAssistant(draft);
+        const trimmed = syncActiveUserVariantTails(trimTrailingEmptyAssistant(draft));
         setMessages(trimmed);
         setStreamingAssistantId(null);
         setRunFlow([]);
@@ -706,27 +830,29 @@ export function AgentConsole() {
     ensureDefaultProjectScope();
     setInput("");
     setEditingLocalId(null);
+    const synced = syncActiveUserVariantTails(messages);
     const userMsg: Msg = { localId: newLocalId(), role: "user", content: t };
     const assistantLocalId = newLocalId();
     const draft: Msg[] = [
-      ...messages,
+      ...synced,
       userMsg,
       { localId: assistantLocalId, role: "assistant", content: "" },
     ];
     setMessages(draft);
-    const forApi = [...messages, userMsg].map(({ role, content }) => ({ role, content }));
+    const forApi = [...synced, userMsg].map(({ role, content }) => ({ role, content }));
     await runAssistantStream(forApi, draft, assistantLocalId);
   };
 
   const regenerateFromAssistant = async (assistantLocalId: string) => {
     if (loading) return;
-    const idx = messages.findIndex((m) => m.localId === assistantLocalId);
+    const synced = syncActiveUserVariantTails(messages);
+    const idx = synced.findIndex((m) => m.localId === assistantLocalId);
     if (idx < 0) return;
     let j = idx - 1;
-    while (j >= 0 && messages[j]!.role !== "user") j--;
+    while (j >= 0 && synced[j]!.role !== "user") j--;
     if (j < 0) return;
-    const userMsg = messages[j]!;
-    const prefix = messages.slice(0, j);
+    const userMsg = synced[j]!;
+    const prefix = synced.slice(0, j);
     const newAsstId = newLocalId();
     const draft: Msg[] = [
       ...prefix,
@@ -771,9 +897,19 @@ export function AgentConsole() {
       const msgs: Msg[] = [];
       for (const ev of events) {
         if (ev.type === "user_message" && ev.payload && typeof ev.payload === "object") {
-          const p = ev.payload as { text?: string };
-          if (p.text !== undefined)
-            msgs.push({ localId: newLocalId(), role: "user", content: p.text });
+          const p = ev.payload as { text?: string; userEditHistory?: unknown };
+          if (p.text !== undefined) {
+            if (p.userEditHistory !== undefined) {
+              const tree = hydrateMsgFromPayload({
+                role: "user",
+                content: p.text,
+                userEditHistory: p.userEditHistory,
+              });
+              msgs.push(tree ?? { localId: newLocalId(), role: "user", content: p.text });
+            } else {
+              msgs.push({ localId: newLocalId(), role: "user", content: p.text });
+            }
+          }
         }
         if (ev.type === "assistant_message" && ev.payload && typeof ev.payload === "object") {
           const p = ev.payload as { text?: string; agentTrace?: unknown };
@@ -893,37 +1029,98 @@ export function AgentConsole() {
     setEditDraft("");
   };
 
-  const saveEditMessage = async () => {
-    if (!editingLocalId) return;
-    const next = messages.map((m) =>
-      m.localId === editingLocalId ? { ...m, content: editDraft } : m,
-    );
-    setMessages(next);
+  const submitUserMessageEdit = async () => {
+    if (!editingLocalId || loading) return;
+    const newText = editDraft.trim();
+    if (!newText) return;
+    const synced = syncActiveUserVariantTails(messages);
+    const i = synced.findIndex((m) => m.localId === editingLocalId);
+    if (i < 0 || synced[i]!.role !== "user") return;
+    const u = synced[i]!;
+    const prefix = synced.slice(0, i);
+    let variants: UserEditVariant[];
+    let activeIndex: number;
+    if (!u.userEditHistory) {
+      const oldTail = synced.slice(i + 1);
+      variants = [
+        { userContent: u.content, tail: cloneMsgs(oldTail) },
+        { userContent: newText, tail: [] },
+      ];
+      activeIndex = 1;
+    } else {
+      const h = u.userEditHistory;
+      const frozen = h.variants.map((v) => ({ ...v, tail: cloneMsgs(v.tail) }));
+      const curTail = synced.slice(i + 1);
+      frozen[h.activeIndex] = { ...frozen[h.activeIndex]!, tail: cloneMsgs(curTail) };
+      variants = [...frozen, { userContent: newText, tail: [] }];
+      activeIndex = variants.length - 1;
+    }
+    const assistantLocalId = newLocalId();
+    const nextUser: Msg = {
+      ...u,
+      content: newText,
+      userEditHistory: { variants, activeIndex },
+    };
+    const draft = syncActiveUserVariantTails([
+      ...prefix,
+      nextUser,
+      { localId: assistantLocalId, role: "assistant", content: "" },
+    ]);
     setEditingLocalId(null);
     setEditDraft("");
-    try {
-      await persistSession(next);
-    } catch (e) {
-      setErr(String(e));
-    }
+    setMessages(draft);
+    const forApi = [...prefix, nextUser].map(({ role, content }) => ({ role, content }));
+    await runAssistantStream(forApi, draft, assistantLocalId);
   };
 
-  const deleteMessage = async (localId: string) => {
-    const next = messages.filter((m) => m.localId !== localId);
-    setMessages(next);
-    if (editingLocalId === localId) cancelEditMessage();
-    try {
-      await persistSession(next);
-    } catch (e) {
-      setErr(String(e));
-    }
-  };
+  const shiftUserMessageVariant = useCallback(
+    (userLocalId: string, delta: -1 | 1) => {
+      if (loading) return;
+      setMessages((prev) => {
+        const synced = syncActiveUserVariantTails(prev);
+        const i = synced.findIndex((m) => m.localId === userLocalId);
+        if (i < 0 || synced[i]!.role !== "user") return prev;
+        const u = synced[i]!;
+        const h = u.userEditHistory;
+        if (!h || h.variants.length < 2) return prev;
+        const ni = h.activeIndex + delta;
+        if (ni < 0 || ni >= h.variants.length) return prev;
+        const prefix = synced.slice(0, i);
+        const v = h.variants[ni]!;
+        const variantsFrozen = h.variants.map((x) => ({
+          userContent: x.userContent,
+          tail: cloneMsgs(x.tail),
+        }));
+        const nextUser: Msg = {
+          ...u,
+          content: v.userContent,
+          userEditHistory: { variants: variantsFrozen, activeIndex: ni },
+        };
+        const next = syncActiveUserVariantTails([...prefix, nextUser, ...cloneMsgs(v.tail)]);
+        void persistSession(next).catch((e) => setErr(String(e)));
+        return next;
+      });
+    },
+    [loading, persistSession],
+  );
 
   const copyPlain = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
       setErr("无法复制到剪贴板。");
+    }
+  };
+
+  const exportAssistantReply = (content: string, assistantLocalId: string) => {
+    const t = content.trim();
+    if (!t) return;
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const short = assistantLocalId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 10) || "reply";
+    try {
+      downloadUtf8File(`cuteclaw-reply-${short}-${stamp}.md`, content, "text/markdown");
+    } catch {
+      setErr("导出失败，请重试。");
     }
   };
 
@@ -1641,25 +1838,33 @@ export function AgentConsole() {
                     <div className={`gpt-turn-stack gpt-turn-stack-${m.role}`}>
                       <div className="gpt-turn-label">{m.role === "user" ? "你" : "CuteClaw"}</div>
                       <div className="gpt-turn-body">
-                        {editingLocalId === m.localId ? (
-                          <div className="gpt-edit-block">
-                            <textarea
-                              className="gpt-edit-textarea"
-                              value={editDraft}
-                              onChange={(e) => setEditDraft(e.target.value)}
-                              rows={6}
-                            />
-                            <div className="gpt-msg-actions">
-                              <button
-                                type="button"
-                                className="gpt-btn-mini primary"
-                                onClick={() => void saveEditMessage()}
-                              >
-                                保存
-                              </button>
-                              <button type="button" className="gpt-btn-mini" onClick={cancelEditMessage}>
-                                取消
-                              </button>
+                        {editingLocalId === m.localId && m.role === "user" ? (
+                          <div className="gpt-user-turn-column">
+                            <div className="gpt-user-bubble-exterior gpt-user-bubble-exterior-editing">
+                              <div className="gpt-user-bubble-surface">
+                                <div className="gpt-md-user gpt-user-edit-bubble">
+                                  <textarea
+                                    className="gpt-edit-textarea gpt-user-edit-bubble-textarea"
+                                    value={editDraft}
+                                    onChange={(e) => setEditDraft(e.target.value)}
+                                    rows={5}
+                                    disabled={loading}
+                                  />
+                                  <div className="gpt-msg-actions gpt-user-edit-bubble-actions">
+                                    <button type="button" className="gpt-btn-mini" onClick={cancelEditMessage}>
+                                      取消
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="gpt-btn-mini primary"
+                                      disabled={loading || !editDraft.trim()}
+                                      onClick={() => void submitUserMessageEdit()}
+                                    >
+                                      发送
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ) : m.role === "user" ? (
@@ -1682,21 +1887,47 @@ export function AgentConsole() {
                                   <button
                                     type="button"
                                     className="gpt-bubble-iconbtn"
-                                    title="编辑"
-                                    aria-label="编辑"
+                                    title="修改"
+                                    aria-label="修改"
                                     onClick={() => startEditMessage(m)}
                                   >
                                     <IconEdit />
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="gpt-bubble-iconbtn danger"
-                                    title="删除"
-                                    aria-label="删除"
-                                    onClick={() => void deleteMessage(m.localId)}
-                                  >
-                                    <IconTrash />
-                                  </button>
+                                  {m.userEditHistory && m.userEditHistory.variants.length >= 2 ? (
+                                    <div
+                                      className="gpt-user-branch-inline"
+                                      role="group"
+                                      aria-label="该提问的历史版本"
+                                    >
+                                      <button
+                                        type="button"
+                                        className="gpt-user-branch-nav-btn gpt-user-branch-nav-btn--iconrow"
+                                        title="上一版本"
+                                        aria-label="上一版本"
+                                        disabled={m.userEditHistory.activeIndex <= 0}
+                                        onClick={() => shiftUserMessageVariant(m.localId, -1)}
+                                      >
+                                        &lt;
+                                      </button>
+                                      <span className="gpt-user-branch-nav-xy" aria-live="polite">
+                                        {m.userEditHistory.activeIndex + 1}/
+                                        {m.userEditHistory.variants.length}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        className="gpt-user-branch-nav-btn gpt-user-branch-nav-btn--iconrow"
+                                        title="下一版本"
+                                        aria-label="下一版本"
+                                        disabled={
+                                          m.userEditHistory.activeIndex >=
+                                          m.userEditHistory.variants.length - 1
+                                        }
+                                        onClick={() => shiftUserMessageVariant(m.localId, 1)}
+                                      >
+                                        &gt;
+                                      </button>
+                                    </div>
+                                  ) : null}
                                 </div>
                               )}
                             </div>
@@ -1759,6 +1990,16 @@ export function AgentConsole() {
                                   onClick={() => void copyPlain(m.content)}
                                 >
                                   <IconCopy />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="gpt-bubble-iconbtn"
+                                  title="导出为 Markdown 文件"
+                                  aria-label="导出为 Markdown 文件"
+                                  disabled={!m.content.trim()}
+                                  onClick={() => exportAssistantReply(m.content, m.localId)}
+                                >
+                                  <IconExport />
                                 </button>
                               </div>
                             )}

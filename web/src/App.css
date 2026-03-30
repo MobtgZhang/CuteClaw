@@ -261,18 +261,27 @@ td {
   min-height: calc(100vh - 72px);
 }
 
-.gpt-app .agent-main {
-  min-height: calc(100vh - 57px);
+.gpt-app .agent-main > .agent-sidebar {
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .gpt-app .agent-main > .gpt-chat {
   min-height: 0;
   align-self: stretch;
+  height: 100%;
+  max-height: none;
+  overflow: hidden;
 }
 
 @media (max-width: 960px) {
   .agent-main {
     grid-template-columns: 1fr;
+  }
+
+  /* 侧栏与聊天纵向堆叠：侧栏按需高度，聊天区占剩余空间并可滚动 */
+  .gpt-app .agent-main {
+    grid-template-rows: auto minmax(0, 1fr);
   }
 }
 
@@ -771,12 +780,10 @@ html[data-theme="light"] .agent-md-editor-wrap textarea.w-md-editor-text-input {
   flex-direction: column;
 }
 
-/* 为 MDEditor 提供确定高度，使 height:100% 与分栏预览填满区域 */
+/* 用 flex 吃满抽屉剩余高度；勿再写死 vh，否则父级 flex 更高时底部会露出 wrap 的 #0a0a0b 像一条黑带 */
 .agent-drawer-skill .agent-md-editor-skill-edit {
   flex: 1;
-  min-height: 280px;
-  height: calc(100vh - 248px);
-  max-height: calc(100vh - 248px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   border-radius: 8px;
@@ -847,9 +854,8 @@ html[data-theme="light"] .agent-md-editor-wrap textarea.w-md-editor-text-input {
 
 .agent-drawer-skill .agent-md-preview-pane {
   flex: 1;
-  min-height: 280px;
-  height: calc(100vh - 248px);
-  max-height: calc(100vh - 248px);
+  min-height: 0;
+  max-height: none;
   background: #121214;
   border: 1px solid #27272a;
   border-radius: 8px;
@@ -1009,6 +1015,25 @@ html[data-theme="light"] .agent-md-editor-wrap textarea.w-md-editor-text-input {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+/* 固定视口高度链，让中间消息区在内部滚动并显示纵向滚动条，避免整页拉长 */
+.agent-app.gpt-app {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.gpt-app .agent-main {
+  flex: 1;
+  min-height: 0;
+  /* 单行占满 flex 剩余高度，避免列随内容无限增高、挤掉内部滚动 */
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .gpt-topbar {
   background: #212121;
   border-bottom: 1px solid #ffffff14;
@@ -1089,6 +1114,10 @@ html[data-theme="light"] .agent-md-editor-wrap textarea.w-md-editor-text-input {
   max-height: calc(100vh - 57px);
   background: #343541;
   border: none;
+}
+
+.gpt-app .gpt-chat {
+  max-height: none;
 }
 
 .gpt-trace-panel {
@@ -1207,8 +1236,31 @@ html[data-theme="light"] .agent-md-editor-wrap textarea.w-md-editor-text-input {
 .gpt-messages-scroll {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 1rem 1rem 0.75rem;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #5a5a6a #2a2a2e;
+}
+
+.gpt-messages-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.gpt-messages-scroll::-webkit-scrollbar-track {
+  background: #2a2a2e;
+  border-radius: 6px;
+}
+
+.gpt-messages-scroll::-webkit-scrollbar-thumb {
+  background: #5a5a6a;
+  border-radius: 6px;
+  border: 2px solid #2a2a2e;
+}
+
+.gpt-messages-scroll::-webkit-scrollbar-thumb:hover {
+  background: #6b6b7a;
 }
 
 .gpt-messages-inner {
@@ -2051,7 +2103,7 @@ html[data-theme="light"] .agent-md-editor-wrap textarea.w-md-editor-text-input {
   align-items: flex-end;
   width: 100%;
   max-width: min(96%, min(96vw, 52rem));
-  gap: 0.45rem;
+  gap: 0.25rem;
 }
 
 .gpt-user-bubble-exterior {
@@ -2059,7 +2111,7 @@ html[data-theme="light"] .agent-md-editor-wrap textarea.w-md-editor-text-input {
   flex-direction: column;
   align-items: flex-end;
   justify-content: flex-start;
-  gap: 0.45rem;
+  gap: 0.3rem;
   width: 100%;
 }
 
@@ -2083,12 +2135,105 @@ html[data-theme="light"] .agent-md-editor-wrap textarea.w-md-editor-text-input {
 }
 
 .gpt-bubble-actions-user-outside {
-  margin-top: 0.1rem;
+  margin-top: 0;
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
 }
 
 .gpt-user-bubble-exterior:hover .gpt-bubble-actions-outside,
 .gpt-user-bubble-exterior:focus-within .gpt-bubble-actions-outside {
   opacity: 1;
+}
+
+.gpt-user-edit-bubble {
+  background: #3e3f4b;
+  color: #f4f4f5;
+  padding: 1rem 1.25rem;
+  border-radius: 1.35rem;
+  border: 1px solid #ffffff14;
+  box-shadow: 0 2px 12px #00000028;
+  max-width: 75%;
+  width: 100%;
+  min-width: 0;
+  margin-left: auto;
+  box-sizing: border-box;
+}
+
+.gpt-user-edit-bubble-textarea {
+  width: 100%;
+  min-height: 110px;
+  box-sizing: border-box;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid #ffffff22;
+  background: rgba(0, 0, 0, 0.22);
+  color: #f4f4f5;
+  font: inherit;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.gpt-user-edit-bubble-textarea:disabled {
+  opacity: 0.55;
+}
+
+.gpt-user-edit-bubble-actions {
+  margin-top: 0.55rem;
+  justify-content: flex-end;
+}
+
+/* 与复制/修改同一行的版本切换 */
+.gpt-user-branch-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  margin-left: 0.2rem;
+  padding-left: 0.4rem;
+  border-left: 1px solid #ffffff18;
+  font-size: 0.7rem;
+  color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.gpt-user-branch-nav-xy {
+  min-width: 2rem;
+  text-align: center;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.gpt-user-branch-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.25rem;
+  border-radius: 6px;
+  border: 1px solid #ffffff20;
+  background: transparent;
+  color: #d4d4d8;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gpt-user-branch-nav-btn--iconrow {
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.15rem;
+  font-size: 0.78rem;
+}
+
+.gpt-user-branch-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fafafa;
+}
+
+.gpt-user-branch-nav-btn:disabled {
+  opacity: 0.28;
+  cursor: default;
 }
 
 .gpt-bubble-assistant-column {
@@ -2674,6 +2819,23 @@ html[data-theme="light"] .gpt-app .agent-skill-list button.active {
 
 html[data-theme="light"] .gpt-chat {
   background: #fff;
+}
+
+html[data-theme="light"] .gpt-messages-scroll {
+  scrollbar-color: #c4c4cc #ececf1;
+}
+
+html[data-theme="light"] .gpt-messages-scroll::-webkit-scrollbar-track {
+  background: #ececf1;
+}
+
+html[data-theme="light"] .gpt-messages-scroll::-webkit-scrollbar-thumb {
+  background: #c4c4cc;
+  border-color: #ececf1;
+}
+
+html[data-theme="light"] .gpt-messages-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
 }
 
 html[data-theme="light"] .gpt-trace-panel {
