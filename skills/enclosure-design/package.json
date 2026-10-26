@@ -1,0 +1,22 @@
+{
+  "name": "enclosure-design",
+  "version": "0.1.0",
+  "description": "产品外壳技能：由 PCB 尺寸生成腔体参数并检查配合间隙",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}

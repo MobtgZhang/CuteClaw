@@ -1,0 +1,22 @@
+{
+  "name": "pcb-layout",
+  "version": "0.1.0",
+  "description": "PCB 布局技能：器件聚类、关键连接器优先定位与飞线代价评估",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}

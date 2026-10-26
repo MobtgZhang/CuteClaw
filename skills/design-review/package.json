@@ -1,0 +1,22 @@
+{
+  "name": "design-review",
+  "version": "0.1.0",
+  "description": "设计评审技能：硬约束优先淘汰，再按代价排序候选方案",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}
