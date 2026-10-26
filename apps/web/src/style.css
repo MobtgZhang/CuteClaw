@@ -1,0 +1,31 @@
+:root {
+  --bg: #10131a;
+  --surface: #161b24;
+  --line: #263041;
+  --text: #e8edf6;
+  --muted: #8b97ab;
+  --accent: #7ca5ff;
+  --ok: #4ade80;
+  --warn: #f5b95c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.5;
+}
+
+#app {
+  min-height: 100vh;
+  padding: 20px;
+}
+
+a {
+  color: var(--accent);
+}
