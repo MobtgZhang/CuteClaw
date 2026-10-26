@@ -3,7 +3,8 @@
 ## 1. 目标与边界
 
 - **目标**：提供可嵌入的**记忆 + 进化门禁 + 指标 + 持久化**内核，对应「分层记忆、显式工作区、提议—检查—合并—观测」闭环中的**确定性部分**。
-- **边界（刻意不做）**：LLM 调用、工具执行、网络、向量检索、UI、操作系统沙箱。这些由宿主进程实现，再通过本库的 API 写入记忆与指标。
+- **核心库边界（刻意不做）**：LLM 调用、工具执行、网络、向量检索、UI、操作系统沙箱。核心库只做确定性部分，宿主通过本库的 API 写入记忆与指标。
+- **宿主边界**：本仓库内的 **Zig Agent Host**（`src/core/` + `src/host.zig`）就是那个宿主——LLM 客户端、工具回路、插件内核、事件总线与沙箱都在 Zig 内，因此「核心库无 LLM」与「Host 是纯 Zig」并不矛盾。外部语言（Node 桥接进程、KiCad/FreeCAD 等）只能作为被调用的受控工具，不持有调度权。
 
 ## 2. 模块依赖
 
@@ -28,6 +29,29 @@ flowchart TB
     P --> V
   end
   CLI[main.zig] --> core
+  subgraph host["Zig Agent Host（纯 Zig）"]
+    H[host.zig]
+    AC[core/agent.zig]
+    LLM[core/llm.zig]
+    SES[core/session.zig]
+    TL[core/tools.zig]
+    EV[core/events.zig]
+    DZ[design/]
+    AD[adapters/]
+    PL[plugins/]
+    SB[sandbox/policy.zig]
+    EVR[evolution/]
+  end
+  H --> core
+  AC --> LLM
+  AC --> TL
+  TL --> DZ
+  TL --> PL
+  PL --> EV
+  DZ --> AD
+  EVR --> core
+  SB --> TL
+  CLI --> host
 ```
 
 - **`ClawRuntime`**：`ArenaAllocator` 托管情景/技能/事实与工作区字符串；**`MetricsRegistry`** 使用独立 `gpa`（与构造时传入的父分配器相同），存放 rollup 与审计，避免与 Arena 生命周期纠缠。
@@ -53,7 +77,9 @@ flowchart TB
 
 ## 5. CLI 设计
 
-`main.zig` 为**无图形 UI** 运维面：初始化目录、演示、导入导出、**`evolve`** / `validate`、追加情景与 invoke 统计、**`config show` / `config init` / `config validate`**（`config.json`）、**`working` / `fact`**、**`serve`**、**`memory`**（读写 Agent `cache/projects/<id>/memory`，与 Web 项目布局一致）、**`agent-tool`**（stdin JSON 原子工具，供 Web Agent 宿主子进程调用）。路径支持 `--store` / `CUTECLAW_STORE` 与 **`--config` / `CUTECLAW_CONFIG`**。
+`main.zig` 为**无图形 UI** 运维面：初始化目录、演示、导入导出、**`evolve`** / `validate`、追加情景与 invoke 统计、**`config show` / `config init` / `config validate`**（`config.json`）、**`working` / `fact`**、**`serve`**、**`memory`**（读写 Agent `cache/projects/<id>/memory`，与 Web 项目布局一致）、**`agent-tool`**（stdin JSON 原子工具，供 Web Agent 宿主子进程调用），以及专业设计面的 **`chat`**（单轮/交互式 REPL）、**`plugin`**（DSH/Cordis 兼容插件）、**`design`**（工程、约束、DRC、外壳配合、候选排序）。路径支持 `--store` / `CUTECLAW_STORE` 与 **`--config` / `CUTECLAW_CONFIG`**。
+
+用法提示与错误文本在退出前会 flush（`cli_common.exit`）：直接 `std.process.exit` 会丢掉缓冲 writer 里的内容。
 
 Web Agent 宿主的 **function calling** 不直接在 Node 内执行 shell/文件逻辑，而是委托 **`cuteclaw agent-tool`**，见 [agent-tools.md](agent-tools.md)。其中 **`task_plan`** 仅为协议/UI 用，由宿主本地处理并发 SSE **`plan_update`**；多轮对话的「执行轨」随助手消息 **`agentTrace`** 落盘，见 [agent-execution-flow.zh.md](agent-execution-flow.zh.md)。
 

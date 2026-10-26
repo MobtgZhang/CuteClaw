@@ -33,7 +33,10 @@ bash tests/cli_smoke.sh zig-out/bin/cuteclaw  # 可选：冒烟
 | `config show` | 打印 `config.json` 中的 API 相关配置（不泄露密钥） |
 | `config init [--force]` | 写入默认 `config.json` |
 | `config validate` | 校验 `config.json` 能否被库解析 |
-| `serve [--port N]` | 仅 `127.0.0.1` 的 HTTP：`/health`、`/store`、`/status`、`POST /evolve`（默认端口 8788 或 `CUTECLAW_SERVE_PORT`） |
+| `serve [--port N]` | 仅 `127.0.0.1` 的 HTTP：`/health`、`/store`、`/status`、`POST /evolve`，以及 `chat` / `chat/stream`（SSE）/ `drc` / `kicad` / `ws`；静态根默认 `apps/web/dist`（默认端口 8788 或 `CUTECLAW_SERVE_PORT`） |
+| `chat [--message TEXT]` | 单轮对话（走工具回路）；无 `--message` 进入交互式 REPL；`--session` `--json` |
+| `plugin list\|load\|enable\|disable\|call` | DeepSeek Harness（Cordis，manifestVersion 1）兼容插件；`call <id> <tool> --args JSON` |
+| `design open\|constraint\|read\|drc\|fit\|rank\|skills` | 工程与约束、KiCad 读取、DRC、外壳配合、候选排序（硬约束先淘汰再按代价排序） |
 | `agent-tool` | 从 **stdin** 读一行 JSON，执行白名单原子工具，**stdout** 打一行 JSON；供 Web Agent 宿主 function calling 使用，详见 [agent-tools.md](agent-tools.md) |
 | `working show` | 打印当前 `WorkingSet` |
 | `working set <field> <文本...>` | 更新工作区一栏并保存（`field` 为 `goal` / `constraints` / `confirmed_facts` / `next_step`） |
@@ -53,6 +56,26 @@ zig build run -- validate --file examples/proposal.json
 zig build run -- evolve --file examples/proposal.json --policy auto_append_only --semver 0.3.0
 zig build run -- export > backup.json
 ```
+
+设计面（专业领域）：
+
+```bash
+# 硬约束先淘汰，再按优化代价排序：C 飞线更短但违反 DRC，必须被淘汰
+zig build run -- design rank canonical \
+  --constraints '[{"id":"drc","kind":"drc_errors","limit":0,"direction":"max","severity":"hard"},{"id":"rat","kind":"rat_length","limit":900,"direction":"max","severity":"soft"}]' \
+  --file benchmarks/pcb/cases.json
+
+zig build run -- design drc canonical --path benchmarks/pcb/canonical.kicad_pcb \
+  --constraints '[{"id":"clearance","kind":"clearance","limit":0.3,"direction":"min","severity":"hard"}]'
+
+zig build run -- plugin call design-review review --plugin skills/design-review/package.json \
+  --args '{"candidates":[{"id":"A","measurements":{"drc_errors":0,"rat_length_mm":820}},{"id":"B","measurements":{"drc_errors":0,"rat_length_mm":670}},{"id":"C","measurements":{"drc_errors":3,"rat_length_mm":590}}],"limits":{"drc_errors":0}}'
+
+# 真实对话（测试 API 默认 /data/api.json，见 tests/live_chat.sh）
+zig build run -- chat --message "你好，用一句话介绍你自己" --config .cuteclaw/config.json
+```
+
+一键校验：`make check`（build + test + smoke + dsh + benchmark + drc + schemas）。
 
 ## 作为库
 
