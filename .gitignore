@@ -1,5 +1,9 @@
+# 生成产物，勿提交
 .zig-cache/
+zig-cache/
 zig-out/
+node_modules/
+dist/
 *.o
 cache/
 # 本地应用状态，勿提交
