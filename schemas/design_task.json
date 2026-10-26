@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cuteclaw.dev/schemas/design_task.json",
+  "title": "CuteClaw Design Task",
+  "type": "object",
+  "required": ["id", "name", "domain", "requirements"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "domain": { "type": "string", "enum": ["pcb", "cad", "enclosure", "packaging"] },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "limit", "direction", "severity"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "trace_width",
+              "clearance",
+              "hole_diameter",
+              "board_area",
+              "rat_length",
+              "iterations",
+              "enclosure_wall",
+              "fit_clearance",
+              "courtyard_gap",
+              "board_margin",
+              "drc_errors"
+            ]
+          },
+          "limit": { "type": "number" },
+          "direction": { "type": "string", "enum": ["min", "max"] },
+          "severity": { "type": "string", "enum": ["hard", "soft"] }
+        }
+      }
+    },
+    "board": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "trace_width": { "type": "number" },
+        "clearance": { "type": "number" }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}

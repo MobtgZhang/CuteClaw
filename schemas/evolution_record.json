@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cuteclaw.dev/schemas/evolution_record.json",
+  "title": "CuteClaw Evolution Record (Propose - Probe - Compare - Compose - Promote)",
+  "type": "object",
+  "required": ["task_id", "stage", "candidates"],
+  "properties": {
+    "task_id": { "type": "string", "minLength": 1 },
+    "stage": {
+      "type": "string",
+      "enum": ["propose", "probe", "compare", "compose", "promote"]
+    },
+    "candidates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "measurements"],
+        "properties": {
+          "id": { "type": "string" },
+          "strategy": { "type": "string" },
+          "measurements": {
+            "type": "object",
+            "properties": {
+              "drc_errors": { "type": "integer", "minimum": 0 },
+              "rat_length_mm": { "type": "number", "minimum": 0 },
+              "iterations": { "type": "integer", "minimum": 0 },
+              "board_area_mm2": { "type": "number", "minimum": 0 },
+              "tool_failures": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "hard_violations": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "eliminated": { "type": "boolean" },
+          "score": { "type": "number" }
+        }
+      }
+    },
+    "winner": { "type": ["string", "null"] },
+    "lessons": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "promoted": { "type": "boolean" },
+    "rollback_ref": { "type": ["string", "null"] },
+    "human_review_required": { "type": "boolean" }
+  }
+}

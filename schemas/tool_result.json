@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cuteclaw.dev/schemas/tool_result.json",
+  "title": "CuteClaw Tool Result",
+  "type": "object",
+  "required": ["tool", "ok", "content"],
+  "properties": {
+    "tool": { "type": "string", "minLength": 1 },
+    "ok": { "type": "boolean" },
+    "content": { "type": "string" },
+    "plugin_id": { "type": ["string", "null"] },
+    "meta": {
+      "type": ["object", "null"],
+      "properties": {
+        "plugin": { "type": "string" },
+        "tool": { "type": "string" },
+        "effects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "payload": {}
+            }
+          }
+        }
+      }
+    },
+    "error": { "type": ["string", "null"] },
+    "duration_ms": { "type": "integer", "minimum": 0 }
+  }
+}
