@@ -33,6 +33,7 @@ pub fn cmdMemory(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []con
             \\默认 --cache cache --project default（相对当前工作目录）
             \\
         );
+        err.flush() catch {};
         std.process.exit(2);
     }
     const sub = argv[3];
@@ -46,6 +47,7 @@ pub fn cmdMemory(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []con
     if (eql(sub, "get")) {
         if (argv.len < 5) {
             try err.writeAll("用法: memory … get <rel>\n");
+            err.flush() catch {};
             std.process.exit(2);
         }
         try cmdMemoryGet(gpa, out, err, root, argv[4]);
@@ -54,6 +56,7 @@ pub fn cmdMemory(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []con
     if (eql(sub, "put")) {
         if (argv.len < 5) {
             try err.writeAll("用法: memory … put <rel>  （从 stdin 读）\n");
+            err.flush() catch {};
             std.process.exit(2);
         }
         try cmdMemoryPut(gpa, err, root, argv[4]);
@@ -62,12 +65,14 @@ pub fn cmdMemory(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []con
     if (eql(sub, "rm")) {
         if (argv.len < 5) {
             try err.writeAll("用法: memory … rm <rel>\n");
+            err.flush() catch {};
             std.process.exit(2);
         }
         try cmdMemoryRm(gpa, err, root, argv[4]);
         return;
     }
     try err.print("未知 memory 子命令: {s}\n", .{sub});
+    err.flush() catch {};
     std.process.exit(2);
 }
 
@@ -81,6 +86,7 @@ fn isSafeRel(rel: []const u8) bool {
 fn cmdMemoryList(gpa: std.mem.Allocator, out: anytype, err: anytype, root: []const u8) !void {
     std.fs.cwd().access(root, .{}) catch {
         try err.print("目录不存在: {s}\n", .{root});
+        err.flush() catch {};
         std.process.exit(1);
     };
     try walkMemoryRel(gpa, out, root, "", 0, 6);
@@ -127,12 +133,14 @@ fn joinRootRel(gpa: std.mem.Allocator, root: []const u8, rel: []const u8) ![]con
 fn cmdMemoryGet(gpa: std.mem.Allocator, out: anytype, err: anytype, root: []const u8, rel: []const u8) !void {
     const full = joinRootRel(gpa, root, rel) catch {
         try err.writeAll("非法路径 rel\n");
+        err.flush() catch {};
         std.process.exit(2);
     };
     defer gpa.free(full);
     const data = std.fs.cwd().readFileAlloc(gpa, full, 8 * 1024 * 1024) catch |e| switch (e) {
         error.FileNotFound => {
             try err.print("未找到: {s}\n", .{rel});
+            err.flush() catch {};
             std.process.exit(1);
         },
         else => return e,
@@ -144,11 +152,13 @@ fn cmdMemoryGet(gpa: std.mem.Allocator, out: anytype, err: anytype, root: []cons
 fn cmdMemoryPut(gpa: std.mem.Allocator, err: anytype, root: []const u8, rel: []const u8) !void {
     const full = joinRootRel(gpa, root, rel) catch {
         try err.writeAll("非法路径 rel\n");
+        err.flush() catch {};
         std.process.exit(2);
     };
     defer gpa.free(full);
     const parent = std.fs.path.dirname(full) orelse {
         try err.writeAll("无效路径\n");
+        err.flush() catch {};
         std.process.exit(2);
     };
     try std.fs.cwd().makePath(parent);
@@ -166,12 +176,14 @@ fn cmdMemoryPut(gpa: std.mem.Allocator, err: anytype, root: []const u8, rel: []c
 fn cmdMemoryRm(gpa: std.mem.Allocator, err: anytype, root: []const u8, rel: []const u8) !void {
     const full = joinRootRel(gpa, root, rel) catch {
         try err.writeAll("非法路径 rel\n");
+        err.flush() catch {};
         std.process.exit(2);
     };
     defer gpa.free(full);
     std.fs.cwd().deleteFile(full) catch |e| switch (e) {
         error.FileNotFound => {
             try err.print("未找到: {s}\n", .{rel});
+            err.flush() catch {};
             std.process.exit(1);
         },
         else => return e,

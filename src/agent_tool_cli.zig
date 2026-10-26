@@ -296,6 +296,7 @@ fn shellExec(gpa: std.mem.Allocator, cwd_abs: []const u8, command: []const u8, t
 pub fn cmdAgentTool(gpa: std.mem.Allocator, out: *std.Io.Writer, err: *std.Io.Writer) !void {
     const raw = readStdinAll(gpa, 1024 * 1024) catch |e| {
         try err.print("读取 stdin 失败: {}\n", .{e});
+        err.flush() catch {};
         std.process.exit(2);
         return;
     };
@@ -303,6 +304,7 @@ pub fn cmdAgentTool(gpa: std.mem.Allocator, out: *std.Io.Writer, err: *std.Io.Wr
 
     var parsed = std.json.parseFromSlice(std.json.Value, gpa, raw, .{}) catch |e| {
         try err.print("JSON 解析失败: {}\n", .{e});
+        err.flush() catch {};
         std.process.exit(2);
         return;
     };
@@ -312,6 +314,7 @@ pub fn cmdAgentTool(gpa: std.mem.Allocator, out: *std.Io.Writer, err: *std.Io.Wr
         .object => |o| o,
         else => {
             try err.writeAll("根须为 JSON 对象\n");
+            err.flush() catch {};
             std.process.exit(2);
             return;
         },
@@ -319,11 +322,13 @@ pub fn cmdAgentTool(gpa: std.mem.Allocator, out: *std.Io.Writer, err: *std.Io.Wr
 
     const tool = strField(root, "tool") orelse {
         try err.writeAll("缺少 tool\n");
+        err.flush() catch {};
         std.process.exit(2);
         return;
     };
     const cache_root = strField(root, "cache_root") orelse {
         try err.writeAll("缺少 cache_root\n");
+        err.flush() catch {};
         std.process.exit(2);
         return;
     };

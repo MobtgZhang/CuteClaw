@@ -4,6 +4,11 @@ const serve = @import("serve.zig");
 const runtime_ops = @import("runtime_ops.zig");
 const memory_cli = @import("memory_cli.zig");
 const agent_tool_cli = @import("agent_tool_cli.zig");
+const cli_chat = cuteclaw.cli_chat;
+const cli_plugin = cuteclaw.cli_plugin;
+const cli_design = cuteclaw.cli_design;
+const cli_common = cuteclaw.cli_common;
+const server_serve = cuteclaw.server_serve;
 
 const ProposalFile = struct {
     skill_name: []const u8,
@@ -106,6 +111,24 @@ pub fn main() !void {
         try err.flush();
         return;
     }
+    if (eql(cmd, "chat")) {
+        try cli_chat.run(gpa, out, err, argv, .{ .max_rounds = resolveMaxRounds(gpa, argv) });
+        try out.flush();
+        try err.flush();
+        return;
+    }
+    if (eql(cmd, "plugin")) {
+        try cli_plugin.run(gpa, out, err, argv, .{ .max_rounds = resolveMaxRounds(gpa, argv) });
+        try out.flush();
+        try err.flush();
+        return;
+    }
+    if (eql(cmd, "design")) {
+        try cli_design.run(gpa, out, err, argv, .{ .max_rounds = resolveMaxRounds(gpa, argv) });
+        try out.flush();
+        try err.flush();
+        return;
+    }
     if (eql(cmd, "working")) {
         try cmdWorking(gpa, out, err, argv);
         try out.flush();
@@ -134,7 +157,7 @@ pub fn main() !void {
         if (argv.len < 3) {
             try err.print("用法: config show | init | validate [--force 仅 init]\n", .{});
             try err.flush();
-            std.process.exit(2);
+            cli_common.exit(out, err, 2);
         }
         const sub = argv[2];
         if (eql(sub, "show")) {
@@ -146,7 +169,7 @@ pub fn main() !void {
         } else {
             try err.print("未知 config 子命令: {s}（支持 show / init / validate）\n", .{sub});
             try err.flush();
-            std.process.exit(2);
+            cli_common.exit(out, err, 2);
         }
         try out.flush();
         try err.flush();
@@ -157,7 +180,7 @@ pub fn main() !void {
     try err.flush();
     try printHelp(out);
     try out.flush();
-    std.process.exit(1);
+    cli_common.exit(out, err, 1);
 }
 
 fn eql(a: []const u8, b: []const u8) bool {
@@ -216,6 +239,9 @@ fn printHelp(out: anytype) !void {
         \\  task            追加情景记录: task <id> <outcome> <summary...>
         \\  invoke          记录技能调用统计: invoke <skill_name> <ok|fail>
         \\  serve [--port N] 仅 127.0.0.1 HTTP（/health、/api/* 等）；端口默认 8788 或 CUTECLAW_SERVE_PORT；日志在 stderr
+        \\  chat [--message TEXT] 单轮对话（无 --message 进入交互式 REPL）；--session --json --config --store
+        \\  plugin list | load <package.json> | enable|disable <id> | call <id> <tool> --args JSON
+        \\  design open <id> | constraint <project> <id> <kind> <limit> <方向> <级别> | read <project> --path FILE | drc <project> | fit <project> <宽> <高> <壁厚> | rank <project> --file FILE | skills
         \\  working show | working set <field> <文本...>   查看/更新工作区（field: goal|constraints|confirmed_facts|next_step）
         \\  fact add <key> <value...>  追加语义事实（confidence 固定 1.0）
         \\  config show     打印 API 配置（不输出密钥内容）
@@ -308,7 +334,7 @@ fn cmdInit(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []c
     }
     if (exists and !force) {
         try err.print("快照已存在，使用 --force 覆盖: {s}\n", .{store});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     }
 
     var lk = try cuteclaw.store_lock.acquire(store, true);
@@ -333,7 +359,7 @@ fn cmdStatus(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const [
     defer rt.deinit();
     cuteclaw.persist.loadFromPath(&rt, gpa, store) catch |e| {
         try err.print("无法加载 {s}: {}（参见 docs/format.md）\n", .{ store, e });
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     };
 
     try runtime_ops.writeStatusText(out, &rt, store, cfg_path);
@@ -366,7 +392,7 @@ fn cmdImport(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const [
 
     var parsed = std.json.parseFromSlice(cuteclaw.persist.StoreDocumentV1, gpa, data, .{ .ignore_unknown_fields = true }) catch |e| {
         try err.print("import: JSON 解析失败: {}（格式见 docs/format.md）\n", .{e});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     };
     defer parsed.deinit();
 
@@ -383,19 +409,19 @@ fn cmdImport(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const [
 fn cmdEvolve(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []const u8) !void {
     const file_path = flagValue(argv, "--file") orelse {
         try err.print("需要 --file proposal.json\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     };
     const policy_s = flagValue(argv, "--policy") orelse {
         try err.print("需要 --policy dry_run|auto_append_only|require_human\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     };
     const semver = flagValue(argv, "--semver") orelse {
         try err.print("需要 --semver 如 1.0.0\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     };
     const policy = cuteclaw.evolution.policyFromString(policy_s) orelse {
         try err.print("未知策略: {s}\n", .{policy_s});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     };
 
     const store = try resolveStorePath(gpa, argv);
@@ -438,10 +464,9 @@ fn cmdEvolve(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const [
 }
 
 fn cmdValidate(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []const u8) !void {
-    _ = err;
     const file_path = flagValue(argv, "--file") orelse {
         try out.print("需要 --file\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     };
     const raw = try std.fs.cwd().readFileAlloc(gpa, file_path, cuteclaw.persist.max_file_bytes);
     defer gpa.free(raw);
@@ -457,7 +482,7 @@ fn cmdValidate(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const
     };
     cuteclaw.evolution.checkProposal(p) catch |e| {
         try out.print("checkProposal: {s}\n", .{@errorName(e)});
-        std.process.exit(1);
+        cli_common.exit(out, err, 1);
     };
     try out.print("checkProposal: ok\n", .{});
 }
@@ -465,12 +490,12 @@ fn cmdValidate(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const
 fn cmdTask(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []const u8) !void {
     if (argv.len < 5) {
         try err.print("用法: task <task_id> <outcome> <summary...>\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     }
     const task_id = argv[2];
     const oc = cuteclaw.memory.outcomeFromString(argv[3]) orelse {
         try err.print("outcome 须为 success|failed|aborted|needs_human\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     };
     const summary = try std.mem.join(gpa, " ", argv[4..]);
     defer gpa.free(summary);
@@ -502,13 +527,13 @@ fn cmdTask(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []c
 fn cmdInvoke(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []const u8) !void {
     if (argv.len < 4) {
         try err.print("用法: invoke <skill_name> <ok|fail>\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     }
     const name = argv[2];
     const ok = eql(argv[3], "ok");
     if (!ok and !eql(argv[3], "fail")) {
         try err.print("第三参数须为 ok 或 fail\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     }
 
     const store = try resolveStorePath(gpa, argv);
@@ -547,7 +572,7 @@ fn cmdConfigInit(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []con
     } else |_| {}
     if (exists and !force) {
         try err.print("配置已存在，使用 --force 覆盖: {s}\n", .{path});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     }
 
     try cuteclaw.config.writeDefaultApiConfigToPath(gpa, path);
@@ -561,9 +586,9 @@ fn cmdConfigValidate(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: [
     var cfg = cuteclaw.config.loadApiConfigFromPath(gpa, path) catch |e| {
         try err.print("config validate: {s} ({s})\n", .{ @errorName(e), path });
         switch (e) {
-            error.FileNotFound => std.process.exit(2),
-            error.UnsupportedApiConfigSchema => std.process.exit(1),
-            else => std.process.exit(2),
+            error.FileNotFound => cli_common.exit(out, err, 2),
+            error.UnsupportedApiConfigSchema => cli_common.exit(out, err, 1),
+            else => cli_common.exit(out, err, 2),
         }
     };
     defer cfg.deinit(gpa);
@@ -571,28 +596,75 @@ fn cmdConfigValidate(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: [
 }
 
 fn cmdServe(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []const u8) !void {
+    if (hasFlag(argv, "--compat")) {
+        try cmdServeCompat(gpa, out, err, argv);
+        return;
+    }
+    try cmdServeNative(gpa, err, argv);
+}
+
+fn cmdServeNative(gpa: std.mem.Allocator, err: anytype, argv: []const []const u8) !void {
+    const port = try resolvePort(gpa, argv);
+    const bind = try resolveBind(gpa, argv);
+    defer gpa.free(bind);
+    const static_root = flagValue(argv, "--static") orelse "apps/web/dist";
+    const event_log = try resolveStorePath(gpa, argv);
+    defer gpa.free(event_log);
+
+    const plugins = try cli_common.flagValues(gpa, argv, "--plugin");
+    defer {
+        for (plugins) |p| gpa.free(p);
+        gpa.free(plugins);
+    }
+
+    const h = try cli_common.buildHost(gpa, argv, .{
+        .plugins = plugins,
+        .max_rounds = resolveMaxRounds(gpa, argv),
+        .event_log_path = event_log,
+    }, err);
+    defer h.free();
+
+    try cuteclaw.server_serve.run(gpa, h, .{ .port = port, .bind = bind, .static_root = static_root }, err);
+}
+
+fn cmdServeCompat(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []const u8) !void {
     const store = try resolveStorePath(gpa, argv);
     defer gpa.free(store);
     const cfg_path = try resolveConfigPath(gpa, argv);
     defer gpa.free(cfg_path);
 
-    var port: u16 = 8788;
-    if (flagValue(argv, "--port")) |ps| {
-        port = try std.fmt.parseInt(u16, ps, 10);
-    } else {
-        if (std.process.getEnvVarOwned(gpa, "CUTECLAW_SERVE_PORT")) |ep| {
-            defer gpa.free(ep);
-            port = try std.fmt.parseInt(u16, ep, 10);
-        } else |_| {}
-    }
+    const port = try resolvePort(gpa, argv);
     const exe_path: []const u8 = if (argv.len > 0) argv[0] else "cuteclaw";
     try serve.run(gpa, store, cfg_path, port, exe_path, out, err);
+}
+
+fn resolvePort(gpa: std.mem.Allocator, argv: []const []const u8) !u16 {
+    if (flagValue(argv, "--port")) |ps| return try std.fmt.parseInt(u16, ps, 10);
+    if (std.process.getEnvVarOwned(gpa, "CUTECLAW_SERVE_PORT")) |ep| {
+        defer gpa.free(ep);
+        return try std.fmt.parseInt(u16, ep, 10);
+    } else |_| {}
+    return 8788;
+}
+
+fn resolveBind(gpa: std.mem.Allocator, argv: []const []const u8) ![]const u8 {
+    if (flagValue(argv, "--bind")) |b| return try gpa.dupe(u8, b);
+    if (std.process.getEnvVarOwned(gpa, "CUTECLAW_SERVE_BIND")) |b| return b else |_| {}
+    return try gpa.dupe(u8, "127.0.0.1");
+}
+
+fn resolveMaxRounds(gpa: std.mem.Allocator, argv: []const []const u8) usize {
+    if (flagValue(argv, "--max-rounds")) |v| {
+        if (std.fmt.parseInt(usize, v, 10)) |n| return n else |_| {}
+    }
+    _ = gpa;
+    return 12;
 }
 
 fn cmdWorking(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []const u8) !void {
     if (argv.len < 3) {
         try err.print("用法: working show | working set <goal|constraints|confirmed_facts|next_step> <文本...>\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     }
     const sub = argv[2];
     const store = try resolveStorePath(gpa, argv);
@@ -622,18 +694,18 @@ fn cmdWorking(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const 
     }
     if (!eql(sub, "set")) {
         try err.print("未知 working 子命令: {s}\n", .{sub});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     }
     if (argv.len < 5) {
         try err.print("用法: working set <field> <文本...>\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     }
     const field = argv[3];
     if (!eql(field, "goal") and !eql(field, "constraints") and
         !eql(field, "confirmed_facts") and !eql(field, "next_step"))
     {
         try err.print("field 须为 goal|constraints|confirmed_facts|next_step\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     }
     const text = try std.mem.join(gpa, " ", argv[4..]);
     defer gpa.free(text);
@@ -660,11 +732,11 @@ fn cmdWorking(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const 
 fn cmdFact(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []const u8) !void {
     if (argv.len < 4 or !eql(argv[2], "add")) {
         try err.print("用法: fact add <key> <value...>\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     }
     if (argv.len < 5) {
         try err.print("用法: fact add <key> <value...>\n", .{});
-        std.process.exit(2);
+        cli_common.exit(out, err, 2);
     }
     const key = argv[3];
     const value = try std.mem.join(gpa, " ", argv[4..]);
