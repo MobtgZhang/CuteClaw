@@ -1,0 +1,22 @@
+{
+  "name": "predicate-router",
+  "version": "0.1.0",
+  "description": "路由规则必须是可对执行状态求值的谓词：不能是模型的自然语言判断",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}
