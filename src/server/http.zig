@@ -327,7 +327,9 @@ pub const App = struct {
         errdefer ju.freeJsonValue(gpa, arr);
         if (self.metrics) |reg| {
             var list: std.ArrayList(metrics.SkillRollup) = .empty;
-            defer list.deinit(gpa);
+            defer list.deinit(
+                gpa,
+            );
             try reg.rollupSnapshot(gpa, &list);
             for (list.items) |r| {
                 var item = ju.newObj(gpa);
