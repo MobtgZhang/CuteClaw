@@ -106,7 +106,9 @@ pub const ConstraintSet = struct {
 
     pub fn check(self: *const ConstraintSet, measurements: []const Measurement) ![]Violation {
         var out: std.ArrayList(Violation) = .empty;
-        errdefer out.deinit(self.gpa);
+        errdefer out.deinit(
+            self.gpa,
+        );
         for (measurements) |m| {
             const rule = self.findKind(m.kind) orelse continue;
             if (satisfies(rule, m.value)) continue;
@@ -119,7 +121,9 @@ pub const ConstraintSet = struct {
                 .severity = rule.severity,
             });
         }
-        return out.toOwnedSlice(self.gpa);
+        return out.toOwnedSlice(
+            self.gpa,
+        );
     }
 
     pub fn satisfiesHard(self: *const ConstraintSet, measurements: []const Measurement) bool {
@@ -157,7 +161,9 @@ pub const Ranked = struct {
 /// 先淘汰违反硬约束的候选，再按软惩罚与优化代价排序。
 pub fn rank(gpa: Allocator, set: *const ConstraintSet, candidates: []const Candidate) ![]Ranked {
     var out: std.ArrayList(Ranked) = .empty;
-    errdefer out.deinit(gpa);
+    errdefer out.deinit(
+        gpa,
+    );
 
     for (candidates) |c| {
         var hard: usize = 0;
@@ -182,7 +188,9 @@ pub fn rank(gpa: Allocator, set: *const ConstraintSet, candidates: []const Candi
     }
 
     std.sort.insertion(Ranked, out.items, {}, rankedLessThan);
-    return out.toOwnedSlice(gpa);
+    return out.toOwnedSlice(
+        gpa,
+    );
 }
 
 fn rankedLessThan(_: void, a: Ranked, b: Ranked) bool {
