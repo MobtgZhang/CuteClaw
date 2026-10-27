@@ -1,6 +1,7 @@
 //! 原子工具执行：供 Agent 宿主通过子进程 JSON 调用（路径限制在项目 cache 下）。
 //! 工具名与 prompts/agent-tools.openai.json 保持一致。
 const std = @import("std");
+const ioc = @import("ioctx");
 const Allocator = std.mem.Allocator;
 
 fn eql(a: []const u8, b: []const u8) bool {
@@ -64,7 +65,7 @@ fn ensureParentDirsForFile(abs_file: []const u8) !void {
     if (std.mem.eql(u8, d, "/")) return;
     if (builtinIsWindows() and d.len == 3 and d[1] == ':' and (d[2] == '\\' or d[2] == '/')) return;
     try ensureParentDirsForFile(d);
-    std.fs.makeDirAbsolute(d) catch |e| switch (e) {
+    ioc.makeDirAbsolute(d) catch |e| switch (e) {
         error.PathAlreadyExists => {},
         else => |x| return x,
     };
@@ -75,9 +76,11 @@ fn builtinIsWindows() bool {
 }
 
 fn readStdinAll(gpa: std.mem.Allocator, limit: usize) ![]u8 {
-    const stdin = std.fs.File.stdin();
+    const stdin = ioc.File.stdin();
     var list: std.ArrayListUnmanaged(u8) = .empty;
-    errdefer list.deinit(gpa);
+    errdefer list.deinit(
+        gpa,
+    );
     var buf: [4096]u8 = undefined;
     while (true) {
         const n = try stdin.read(&buf);
@@ -85,7 +88,9 @@ fn readStdinAll(gpa: std.mem.Allocator, limit: usize) ![]u8 {
         if (list.items.len + n > limit) return error.InputTooLarge;
         try list.appendSlice(gpa, buf[0..n]);
     }
-    return try list.toOwnedSlice(gpa);
+    return try list.toOwnedSlice(
+        gpa,
+    );
 }
 
 fn writeJsonOk(out: *std.Io.Writer, value: anytype) !void {
@@ -124,7 +129,7 @@ fn ensureDirChain(abs: []const u8) !void {
     if (builtinIsWindows() and abs.len == 3 and abs[1] == ':' and (abs[2] == '\\' or abs[2] == '/')) return;
     const parent = std.fs.path.dirname(abs) orelse return;
     if (parent.len > 0) try ensureDirChain(parent);
-    std.fs.makeDirAbsolute(abs) catch |e| switch (e) {
+    ioc.makeDirAbsolute(abs) catch |e| switch (e) {
         error.PathAlreadyExists => {},
         else => |x| return x,
     };
@@ -165,7 +170,9 @@ const web_fetch_user_agent = "Mozilla/5.0 (compatible; CuteClawAgent/0.1; +https
 /// 读取正文至多 `max_bytes` 字节；超出部分丢弃（`allocRemaining(.limited)` 在正文更大时会报 StreamTooLong）。
 fn readHttpBodyCapped(gpa: std.mem.Allocator, r: *std.Io.Reader, max_bytes: u32) ![]u8 {
     var list: std.ArrayListUnmanaged(u8) = .empty;
-    errdefer list.deinit(gpa);
+    errdefer list.deinit(
+        gpa,
+    );
     var buf: [16384]u8 = undefined;
     var total: usize = 0;
     const cap: usize = max_bytes;
@@ -177,7 +184,9 @@ fn readHttpBodyCapped(gpa: std.mem.Allocator, r: *std.Io.Reader, max_bytes: u32)
         total += n;
     }
     _ = r.discardRemaining() catch {};
-    return try list.toOwnedSlice(gpa);
+    return try list.toOwnedSlice(
+        gpa,
+    );
 }
 
 fn webFetch(gpa: std.mem.Allocator, url_str: []const u8, max_bytes: u32) ![]u8 {
@@ -191,6 +200,7 @@ fn webFetch(gpa: std.mem.Allocator, url_str: []const u8, max_bytes: u32) ![]u8 {
 
     var client: std.http.Client = .{
         .allocator = gpa,
+        .io = ioc.io(),
         .read_buffer_size = 65536,
         .write_buffer_size = 4096,
     };
@@ -220,7 +230,7 @@ fn webFetch(gpa: std.mem.Allocator, url_str: []const u8, max_bytes: u32) ![]u8 {
 }
 
 fn shellAllowed() bool {
-    const v = std.posix.getenv("CUTECLAW_AGENT_SHELL") orelse return false;
+    const v = ioc.env("CUTECLAW_AGENT_SHELL") orelse return false;
     return eql(v, "1");
 }
 
@@ -233,11 +243,11 @@ const KillerCtx = struct {
         var left = timeout_ms;
         while (left > 0) {
             const slice = @min(step_ms, left);
-            std.Thread.sleep(@as(u64, slice) * std.time.ns_per_ms);
+            std.Io.sleep(ioc.io(), std.Io.Duration.fromNanoseconds(@as(i96, slice) * std.time.ns_per_ms), .awake) catch return;
             left -= slice;
             if (self.done.load(.seq_cst)) return;
         }
-        _ = self.child.kill() catch {};
+        std.process.Child.kill(self.child, ioc.io());
     }
 };
 
@@ -249,22 +259,22 @@ fn shellExec(gpa: std.mem.Allocator, cwd_abs: []const u8, command: []const u8, t
         else => &[_][]const u8{ "/bin/sh", "-c", command },
     };
 
-    var child = std.process.Child.init(argv_shell, gpa);
-    child.cwd = cwd_abs;
-    child.stdin_behavior = .Ignore;
-    child.stdout_behavior = .Pipe;
-    child.stderr_behavior = .Pipe;
+    var child = try std.process.spawn(ioc.io(), .{
+        .argv = argv_shell,
+        .cwd = .{ .path = cwd_abs },
+        .stdin = .ignore,
+        .stdout = .pipe,
+        .stderr = .pipe,
+    });
+    errdefer {
+        std.process.Child.kill(&child, ioc.io());
+        _ = std.process.Child.wait(&child, ioc.io()) catch {};
+    }
 
     var stdout: std.ArrayList(u8) = .empty;
     defer stdout.deinit(gpa);
     var stderr: std.ArrayList(u8) = .empty;
     defer stderr.deinit(gpa);
-
-    try child.spawn();
-    errdefer {
-        _ = child.kill() catch {};
-        _ = child.wait() catch {};
-    }
 
     var done_flag = std.atomic.Value(bool).init(false);
     var kctx = KillerCtx{ .child = &child, .done = &done_flag };
@@ -275,12 +285,21 @@ fn shellExec(gpa: std.mem.Allocator, cwd_abs: []const u8, command: []const u8, t
     }
 
     const max_out: usize = 256 * 1024;
-    try child.collectOutput(gpa, &stdout, &stderr, max_out);
+    if (child.stdout) |f| {
+        const out = try ioc.File.wrap(f).readToEndAlloc(gpa, max_out);
+        defer gpa.free(out);
+        try stdout.appendSlice(gpa, out);
+    }
+    if (child.stderr) |f| {
+        const out = try ioc.File.wrap(f).readToEndAlloc(gpa, max_out);
+        defer gpa.free(out);
+        try stderr.appendSlice(gpa, out);
+    }
     done_flag.store(true, .seq_cst);
 
-    const term = try child.wait();
+    const term = try child.wait(ioc.io());
     switch (term) {
-        .Exited => |c| {
+        .exited => |c| {
             if (c != 0) {
                 return try std.fmt.allocPrint(gpa, "[exit {d}]\n{s}\n{s}", .{ c, stdout.items, stderr.items });
             }
@@ -391,7 +410,7 @@ pub fn cmdAgentTool(gpa: std.mem.Allocator, out: *std.Io.Writer, err: *std.Io.Wr
             return;
         };
         defer gpa.free(abs);
-        const f = std.fs.openFileAbsolute(abs, .{}) catch |e| {
+        const f = ioc.openFileAbsolute(abs, .{}) catch |e| {
             try writeJsonOk(out, .{ .ok = false, .err = @errorName(e) });
             return;
         };
@@ -429,7 +448,7 @@ pub fn cmdAgentTool(gpa: std.mem.Allocator, out: *std.Io.Writer, err: *std.Io.Wr
         };
         defer gpa.free(abs);
         try ensureParentDirsForFile(abs);
-        const wf = try std.fs.createFileAbsolute(abs, .{ .truncate = true });
+        const wf = try ioc.createFileAbsolute(abs, .{ .truncate = true });
         defer wf.close();
         try wf.writeAll(content);
         try writeJsonOk(out, .{ .ok = true, .result = .{ .written = true, .path = abs } });
@@ -447,22 +466,24 @@ pub fn cmdAgentTool(gpa: std.mem.Allocator, out: *std.Io.Writer, err: *std.Io.Wr
             return;
         };
         defer gpa.free(broot);
-        var list_dir: std.fs.Dir = if (rel.len == 0)
-            try std.fs.openDirAbsolute(broot, .{ .iterate = true })
+        var list_dir: ioc.Dir = if (rel.len == 0)
+            try ioc.openDirAbsolute(broot, .{ .iterate = true })
         else blk: {
             const abs = resolveUnderRoot(gpa, broot, rel) catch {
                 try writeJsonOk(out, .{ .ok = false, .err = "bad path" });
                 return;
             };
             defer gpa.free(abs);
-            break :blk try std.fs.openDirAbsolute(abs, .{ .iterate = true });
+            break :blk try ioc.openDirAbsolute(abs, .{ .iterate = true });
         };
         defer list_dir.close();
 
         var paths = std.ArrayListUnmanaged([]const u8).empty;
         defer {
             for (paths.items) |p| gpa.free(p);
-            paths.deinit(gpa);
+            paths.deinit(
+                gpa,
+            );
         }
         var it = list_dir.iterate();
         while (try it.next()) |ent| {
@@ -492,7 +513,7 @@ pub fn cmdAgentTool(gpa: std.mem.Allocator, out: *std.Io.Writer, err: *std.Io.Wr
             return;
         };
         defer gpa.free(abs);
-        const f = std.fs.openFileAbsolute(abs, .{}) catch |e| {
+        const f = ioc.openFileAbsolute(abs, .{}) catch |e| {
             try writeJsonOk(out, .{ .ok = false, .err = @errorName(e) });
             return;
         };
@@ -567,7 +588,7 @@ pub fn cmdAgentTool(gpa: std.mem.Allocator, out: *std.Io.Writer, err: *std.Io.Wr
         };
         defer gpa.free(abs);
         {
-            const f = std.fs.openFileAbsolute(abs, .{}) catch |e| {
+            const f = ioc.openFileAbsolute(abs, .{}) catch |e| {
                 try writeJsonOk(out, .{ .ok = false, .err = @errorName(e) });
                 return;
             };
@@ -581,7 +602,7 @@ pub fn cmdAgentTool(gpa: std.mem.Allocator, out: *std.Io.Writer, err: *std.Io.Wr
                 return;
             }
         }
-        std.fs.deleteFileAbsolute(abs) catch |e| {
+        ioc.deleteFileAbsolute(abs) catch |e| {
             try writeJsonOk(out, .{ .ok = false, .err = @errorName(e) });
             return;
         };
@@ -618,7 +639,7 @@ pub fn cmdAgentTool(gpa: std.mem.Allocator, out: *std.Io.Writer, err: *std.Io.Wr
             return;
         };
         defer gpa.free(abs);
-        const f = std.fs.openFileAbsolute(abs, .{}) catch |e| {
+        const f = ioc.openFileAbsolute(abs, .{}) catch |e| {
             try writeJsonOk(out, .{ .ok = false, .err = @errorName(e) });
             return;
         };
@@ -641,13 +662,15 @@ pub fn cmdAgentTool(gpa: std.mem.Allocator, out: *std.Io.Writer, err: *std.Io.Wr
         var matches: std.ArrayListUnmanaged(Match) = .empty;
         defer {
             for (matches.items) |m| gpa.free(m.text);
-            matches.deinit(gpa);
+            matches.deinit(
+                gpa,
+            );
         }
 
         var line_no: u32 = 1;
         var iter = std.mem.splitScalar(u8, content, '\n');
         while (iter.next()) |raw_line| {
-            const line = std.mem.trimRight(u8, raw_line, "\r");
+            const line = std.mem.trim(u8, raw_line, "\r");
             if (lineContainsNeedle(line, needle, ic)) {
                 const dup = try gpa.dupe(u8, line);
                 try matches.append(gpa, .{ .line = line_no, .text = dup });
