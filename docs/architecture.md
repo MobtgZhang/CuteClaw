@@ -41,6 +41,8 @@ flowchart TB
     PL[plugins/]
     SB[sandbox/policy.zig]
     EVR[evolution/]
+    GR[graph/]
+    LP[loop/]
   end
   H --> core
   AC --> LLM
@@ -51,11 +53,19 @@ flowchart TB
   DZ --> AD
   EVR --> core
   SB --> TL
+  TL --> GR
+  TL --> LP
   CLI --> host
 ```
 
 - **`ClawRuntime`**：`ArenaAllocator` 托管情景/技能/事实与工作区字符串；**`MetricsRegistry`** 使用独立 `gpa`（与构造时传入的父分配器相同），存放 rollup 与审计，避免与 Arena 生命周期纠缠。
 - **`persist`**：只依赖 `claw` / `memory` / `metrics` / `version`，**不**反向依赖 `main`。
+
+## 2.1 执行层
+
+- **`graph/`**：设计过程的依赖图（节点、真实边与叙述边、分层执行、硬门、检查点）。规划权在 Zig 侧，插件只提供能力，详见 [graph-flow.md](graph-flow.md)。
+- **`loop/`**：运行期规则（hook、审批、压缩、检查点、计划、子代理、`SKILL.md`）。回路决定什么能跑、什么必须停在人工审批门前，详见 [agent-loop.md](agent-loop.md)。
+- 三层工具面（`design/`、`graph/`、`loop/`）共用 `core/tools.zig` 的同一个注册表与同一套能力检查：`ToolCtx` 分别注入 `workspace`、`graph_workspace`、`loop_workspace`。
 
 ## 3. 进化闭环（库内实现范围）
 
