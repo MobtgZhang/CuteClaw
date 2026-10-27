@@ -84,7 +84,9 @@ pub fn rank(gpa: Allocator, outcomes: []const probe.Outcome) ![]RankedCandidate 
     }
 
     var order: std.ArrayList([]const u8) = .empty;
-    defer order.deinit(gpa);
+    defer order.deinit(
+        gpa,
+    );
 
     for (outcomes) |o| {
         const key = try gpa.dupe(u8, o.candidate_id);
@@ -99,7 +101,9 @@ pub fn rank(gpa: Allocator, outcomes: []const probe.Outcome) ![]RankedCandidate 
     }
 
     var out: std.ArrayList(RankedCandidate) = .empty;
-    errdefer out.deinit(gpa);
+    errdefer out.deinit(
+        gpa,
+    );
     for (order.items) |id| {
         const list = groups.get(id) orelse continue;
         const metrics = evaluate(list.items);
@@ -111,7 +115,9 @@ pub fn rank(gpa: Allocator, outcomes: []const probe.Outcome) ![]RankedCandidate 
     }
 
     std.sort.insertion(RankedCandidate, out.items, {}, rankedLessThan);
-    return out.toOwnedSlice(gpa);
+    return out.toOwnedSlice(
+        gpa,
+    );
 }
 
 fn rankedLessThan(_: void, a: RankedCandidate, b: RankedCandidate) bool {

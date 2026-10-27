@@ -59,12 +59,16 @@ pub fn propose(gpa: Allocator, evidence: []const Evidence, limit: usize) ![]Cand
     var out: std.ArrayList(Candidate) = .empty;
     errdefer {
         for (out.items) |c| c.free(gpa);
-        out.deinit(gpa);
+        out.deinit(
+            gpa,
+        );
     }
 
     for (evidence) |ev| {
         for (ev.lessons) |lesson| {
-            if (out.items.len >= limit) return out.toOwnedSlice(gpa);
+            if (out.items.len >= limit) return out.toOwnedSlice(
+                gpa,
+            );
             const component = pickComponent(lesson);
             if (!editable(component)) continue;
             try out.append(gpa, .{
@@ -77,7 +81,9 @@ pub fn propose(gpa: Allocator, evidence: []const Evidence, limit: usize) ![]Cand
         }
     }
 
-    return out.toOwnedSlice(gpa);
+    return out.toOwnedSlice(
+        gpa,
+    );
 }
 
 fn pickComponent(lesson: []const u8) Component {

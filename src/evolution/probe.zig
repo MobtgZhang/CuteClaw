@@ -79,11 +79,15 @@ pub const Prober = struct {
 
     pub fn probeAll(self: *Prober, candidates: []const proposer.Candidate, tasks: []const Task) ![]Outcome {
         var out: std.ArrayList(Outcome) = .empty;
-        errdefer out.deinit(self.gpa);
+        errdefer out.deinit(
+            self.gpa,
+        );
         for (candidates) |c| {
             for (tasks) |t| try out.append(self.gpa, try self.probe(c, t));
         }
-        return out.toOwnedSlice(self.gpa);
+        return out.toOwnedSlice(
+            self.gpa,
+        );
     }
 };
 

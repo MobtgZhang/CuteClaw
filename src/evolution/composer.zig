@@ -82,13 +82,17 @@ pub fn compose(gpa: Allocator, ranked: []const evaluator.RankedCandidate, candid
             gpa.free(p.component);
             gpa.free(p.body);
         }
-        patches.deinit(gpa);
+        patches.deinit(
+            gpa,
+        );
     }
 
     var skipped: std.ArrayList([]const u8) = .empty;
     errdefer {
         for (skipped.items) |s| gpa.free(s);
-        skipped.deinit(gpa);
+        skipped.deinit(
+            gpa,
+        );
     }
 
     for (ranked) |r| {
@@ -111,8 +115,12 @@ pub fn compose(gpa: Allocator, ranked: []const evaluator.RankedCandidate, candid
 
     return .{
         .gpa = gpa,
-        .patches = try patches.toOwnedSlice(gpa),
-        .skipped = try skipped.toOwnedSlice(gpa),
+        .patches = try patches.toOwnedSlice(
+            gpa,
+        ),
+        .skipped = try skipped.toOwnedSlice(
+            gpa,
+        ),
     };
 }
 
