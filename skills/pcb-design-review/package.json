@@ -1,0 +1,22 @@
+{
+  "name": "pcb-design-review",
+  "version": "0.1.0",
+  "description": "PCB 审查技能：电源树/子电路/ESD/DFM 分项 fan-out，再分层合并，结论必须可复推",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}
