@@ -3,7 +3,7 @@
 ## 环境
 
 ```bash
-zig version   # 建议 0.15.2
+zig version   # 建议 0.17.0（与 build.zig.zon 一致）
 ```
 
 ## 构建与测试
