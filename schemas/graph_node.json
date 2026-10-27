@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cuteclaw.dev/schemas/graph_node.json",
+  "title": "CuteClaw Graph Node",
+  "type": "object",
+  "required": ["id", "capability", "kind"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "capability": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "enum": ["work", "fan_out", "fan_in", "gate", "verify", "approval"] },
+    "tier": { "type": "string", "enum": ["cheap", "standard", "strong"] },
+    "risk": { "type": "string", "enum": ["low", "medium", "high", "irreversible"] },
+    "skill": { "type": "string" },
+    "phase": { "type": "integer", "minimum": 0 },
+    "depends_on": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "payload": { "type": ["object", "null"] },
+    "writes": { "type": "string" },
+    "rederive": { "type": "boolean" },
+    "retry_target": { "type": "string" },
+    "batch": { "type": "integer", "minimum": 0 },
+    "irreversible": { "type": "boolean" },
+    "fresh_context": { "type": "boolean" },
+    "max_parallel": { "type": "integer", "minimum": 0 }
+  }
+}
