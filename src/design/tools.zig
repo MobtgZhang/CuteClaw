@@ -12,6 +12,7 @@ const project = @import("project.zig");
 const constraints = @import("constraints.zig");
 const validation = @import("validation.zig");
 const kicad = @import("../adapters/kicad.zig");
+const ioc = @import("ioctx");
 
 const Allocator = std.mem.Allocator;
 
@@ -227,7 +228,7 @@ fn pcbReadTool(ctx: *tools.ToolCtx, args: std.json.Value) anyerror!tools.ToolRes
         const path = ju.objStr(args.object, "path");
         if (path.len == 0) return error.MissingArgument;
         try ctx.policy.checkPath(path);
-        owned = try std.fs.cwd().readFileAlloc(gpa, path, max_read_bytes);
+        owned = try ioc.cwd().readFileAlloc(gpa, path, max_read_bytes);
         text = owned.?;
     }
 
@@ -293,7 +294,9 @@ fn designRankTool(ctx: *tools.ToolCtx, args: std.json.Value) anyerror!tools.Tool
             for (c.measurements) |m| gpa.free(m.ref);
             gpa.free(c.measurements);
         }
-        parsed.deinit(gpa);
+        parsed.deinit(
+            gpa,
+        );
     }
 
     for (candidates_v.array.items) |cv| {
@@ -302,7 +305,9 @@ fn designRankTool(ctx: *tools.ToolCtx, args: std.json.Value) anyerror!tools.Tool
         var measures: std.ArrayList(constraints.Measurement) = .empty;
         errdefer {
             for (measures.items) |m| gpa.free(m.ref);
-            measures.deinit(gpa);
+            measures.deinit(
+                gpa,
+            );
         }
         if (ju.objGet(item, "measurements")) |mv| {
             if (mv == .array) {
