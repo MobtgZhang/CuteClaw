@@ -3,6 +3,7 @@
 
 const std = @import("std");
 const ju = @import("jsonutil.zig");
+const ioc = @import("ioctx");
 const Allocator = std.mem.Allocator;
 
 pub const DispatchMode = enum { emit, waterfall, parallel, serial, bail };
@@ -86,11 +87,13 @@ pub const EventBus = struct {
         if (list.items.len == 0) return .null;
 
         var ordered: std.ArrayList(Handler) = .empty;
-        defer ordered.deinit(self.gpa);
+        defer ordered.deinit(
+            self.gpa,
+        );
         for (list.items) |h| try ordered.append(self.gpa, h);
         std.sort.insertion(Handler, ordered.items, {}, priorityLessThan);
 
-        const ev = Event{ .kind = kind, .ts_unix = std.time.milliTimestamp(), .payload = payload };
+        const ev = Event{ .kind = kind, .ts_unix = ioc.nowMs(), .payload = payload };
         var acc: std.json.Value = payload;
 
         switch (mode) {
@@ -146,20 +149,19 @@ pub const EventLog = struct {
     pub fn append(self: *EventLog, ev: Event) !void {
         const payload = try ju.stringifyAlloc(self.gpa, ev.payload);
         defer self.gpa.free(payload);
-        const ts = if (ev.ts_unix == 0) std.time.timestamp() else ev.ts_unix;
+        const ts = if (ev.ts_unix == 0) ioc.nowSec() else ev.ts_unix;
         const line = try std.fmt.allocPrint(self.gpa, "{{\"kind\":\"{s}\",\"ts\":{d},\"payload\":{s}}}\n", .{ ev.kind, ts, payload });
         defer self.gpa.free(line);
 
         const dir = std.fs.path.dirname(self.path);
-        if (dir) |d| std.fs.cwd().makePath(d) catch {};
-        var file = try std.fs.cwd().createFile(self.path, .{});
+        if (dir) |d| ioc.cwd().makePath(d) catch {};
+        var file = try ioc.cwd().createFile(self.path, .{});
         defer file.close();
-        try file.seekFromEnd(0);
-        try file.writeAll(line);
+        try file.appendAll(line);
     }
 
     pub fn readAll(self: *EventLog) ![]const u8 {
-        return std.fs.cwd().readFileAlloc(self.gpa, self.path, 4 * 1024 * 1024);
+        return ioc.cwd().readFileAlloc(self.gpa, self.path, 4 * 1024 * 1024);
     }
 };
 
