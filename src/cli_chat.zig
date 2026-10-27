@@ -8,6 +8,7 @@ const llm = @import("core/llm.zig");
 const cli = @import("cli_common.zig");
 const http = @import("server/http.zig");
 const host = @import("host.zig");
+const ioc = @import("ioctx");
 
 pub const Options = struct {
     session_id: []const u8 = "cli",
@@ -43,7 +44,7 @@ pub fn run(gpa: Allocator, out: *std.Io.Writer, err: *std.Io.Writer, argv: []con
     }
 
     var stdin_buf: [4096]u8 = undefined;
-    var stdin_reader = std.fs.File.stdin().reader(&stdin_buf);
+    var stdin_reader = ioc.File.stdin().reader(&stdin_buf);
     const reader = &stdin_reader.interface;
 
     try out.print("CuteClaw Design Agent — 输入内容开始对话（exit 退出）\n", .{});

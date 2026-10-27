@@ -8,6 +8,7 @@ const cli = @import("cli_common.zig");
 const host = @import("host.zig");
 const http = @import("server/http.zig");
 const cli_common = @import("cli_common.zig");
+const ioc = @import("ioctx");
 
 pub const Options = struct {
     max_rounds: usize = 12,
@@ -141,7 +142,7 @@ pub fn buildArgs(gpa: Allocator, argv: []const []const u8, sub: []const u8) !std
         var text: []const u8 = "[]";
         var owned = false;
         if (file) |f| {
-            text = try std.fs.cwd().readFileAlloc(gpa, f, 256 * 1024);
+            text = try ioc.cwd().readFileAlloc(gpa, f, 256 * 1024);
             owned = true;
         } else if (inline_json) |v| text = v;
 
