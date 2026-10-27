@@ -1,4 +1,4 @@
-# CuteClaw — 常用构建与运行入口（需 Zig 0.15.2+）
+# CuteClaw — 常用构建与运行入口（需 Zig 0.17.0+）
 # 用法示例:
 #   make                  # 显示帮助
 #   make build
@@ -8,7 +8,7 @@
 
 ZIG ?= zig
 
-.PHONY: default help all build test fmt fmt-fix run install clean smoke network-test dsh benchmark drc schemas live-chat check app-install app-build app-dev web-install web-build web-dev web-dev-zig
+.PHONY: default help all build test fmt fmt-fix run install clean smoke network-test dsh benchmark drc schemas graph loop live-chat check app-install app-build app-dev web-install web-build web-dev web-dev-zig
 
 # 传给 `zig build run -- …` 的子命令与参数（空格请整条加引号）
 ARGS ?= help
@@ -32,8 +32,10 @@ help:
 	@echo "  make benchmark   设计基准：硬约束淘汰 + 优化排序"
 	@echo "  make drc         KiCad/STEP 适配器与 DRC、外壳配合校验"
 	@echo "  make schemas     JSON Schema 校验"
+	@echo "  make graph       Graph Flow / Graph Loop：技能目录、工作形状审计、硬门与检查点"
+	@echo "  make loop        Agent Loop：计划只读、二元终止条件、hook 只能收紧、审批、压缩审计、检查点、子代理写入边界"
 	@echo "  make live-chat   用测试 API（默认 /data/api.json）跑一轮真实对话；不可达则跳过"
-	@echo "  make check       build + test + smoke + dsh + benchmark + drc + schemas"
+	@echo "  make check       build + test + smoke + dsh + benchmark + drc + schemas + graph + loop"
 	@echo "  make clean       删除 zig-out/"
 	@echo "  make app-install cd apps/web && npm install（Vue + TypeScript 前端）"
 	@echo "  make app-build   cd apps/web && npm run build（产物 apps/web/dist，serve 的静态根）"
@@ -80,6 +82,8 @@ check: build test
 	bash tests/design_benchmark.sh "$(CURDIR)/$(BIN)"
 	bash tests/design_drc.sh "$(CURDIR)/$(BIN)"
 	bash tests/schemas.sh "$(CURDIR)/$(BIN)"
+	bash tests/graph.sh "$(CURDIR)/$(BIN)"
+	bash tests/agent_loop.sh "$(CURDIR)/$(BIN)"
 
 dsh: build
 	bash tests/dsh_bridge.sh "$(CURDIR)/$(BIN)"
@@ -92,6 +96,12 @@ drc: build
 
 schemas: build
 	bash tests/schemas.sh "$(CURDIR)/$(BIN)"
+
+graph: build
+	bash tests/graph.sh "$(CURDIR)/$(BIN)"
+
+loop: build
+	bash tests/agent_loop.sh "$(CURDIR)/$(BIN)"
 
 live-chat: build
 	bash tests/live_chat.sh "$(CURDIR)/$(BIN)"
