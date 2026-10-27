@@ -7,6 +7,7 @@ const tools = @import("../core/tools.zig");
 const manifest = @import("manifest.zig");
 const permissions = @import("permissions.zig");
 const effects = @import("registry.zig");
+const ioc = @import("ioctx");
 
 const Allocator = std.mem.Allocator;
 
@@ -64,7 +65,7 @@ pub const Kernel = struct {
     }
 
     pub fn loadFromPath(self: *Kernel, path: []const u8) !PluginRecord {
-        const raw = try std.fs.cwd().readFileAlloc(self.gpa, path, 256 * 1024);
+        const raw = try ioc.cwd().readFileAlloc(self.gpa, path, 256 * 1024);
         defer self.gpa.free(raw);
         return self.load(std.mem.trim(u8, raw, " \t\r\n"), std.fs.path.dirname(path) orelse ".");
     }
