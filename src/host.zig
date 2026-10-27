@@ -13,7 +13,10 @@ const sandbox = @import("sandbox/policy.zig");
 const kernel = @import("plugins/kernel.zig");
 const manifest = @import("plugins/manifest.zig");
 const design_tools = @import("design/tools.zig");
+const graph_tools = @import("graph/tools.zig");
+const loop_tools = @import("loop/tools.zig");
 const http = @import("server/http.zig");
+const ioc = @import("ioctx");
 
 const Allocator = std.mem.Allocator;
 
@@ -49,6 +52,8 @@ pub const Host = struct {
     kernel: kernel.Kernel,
     client: llm.Client,
     workspace: design_tools.Workspace,
+    graph: graph_tools.Workspace,
+    loop: loop_tools.Workspace,
     runtime: claw.ClawRuntime,
     event_log: events.EventLog,
     system_prompt: []const u8,
@@ -71,6 +76,8 @@ pub const Host = struct {
             .kernel = undefined,
             .client = undefined,
             .workspace = undefined,
+            .graph = undefined,
+            .loop = undefined,
             .runtime = undefined,
             .event_log = undefined,
             .system_prompt = undefined,
@@ -87,6 +94,8 @@ pub const Host = struct {
         host.bus = events.EventBus.init(gpa);
         host.kernel = kernel.Kernel.init(gpa, &host.registry);
         host.workspace = design_tools.Workspace.init(gpa, &host.policy);
+        host.graph = graph_tools.Workspace.init(gpa, &host.policy);
+        host.loop = try loop_tools.Workspace.init(gpa, &host.policy);
         host.runtime = claw.ClawRuntime.init(gpa);
         host.event_log = events.EventLog.init(gpa, opts.event_log_path);
         host.system_prompt = opts.system_prompt;
@@ -113,13 +122,20 @@ pub const Host = struct {
         });
         host.kernel.bus = &host.bus;
         host.workspace.runtime = &host.runtime;
+        host.graph.runtime = &host.runtime;
+        host.graph.design = &host.workspace;
 
         for (opts.capabilities) |cap| try host.policy.grant(cap);
         try host.workspace.registerTools(&host.registry);
+        try host.graph.loadBuiltinGates();
+        try host.graph.registerTools(&host.registry);
+        try host.loop.registerTools(&host.registry);
         return host;
     }
 
     pub fn deinit(self: *Host) void {
+        self.loop.deinit();
+        self.graph.deinit();
         self.workspace.deinit();
         self.kernel.deinit();
         self.bus.deinit();
@@ -157,6 +173,8 @@ pub const Host = struct {
     pub fn app(self: *Host) http.App {
         var result = http.App.init(self.gpa, self.deps());
         result.tool_ctx.workspace = @ptrCast(&self.workspace);
+        result.tool_ctx.graph_workspace = @ptrCast(&self.graph);
+        result.tool_ctx.loop_workspace = @ptrCast(&self.loop);
         result.max_rounds = self.max_rounds;
         return result;
     }
@@ -180,7 +198,7 @@ pub const Host = struct {
     }
 
     pub fn loadPlugin(self: *Host, package_json_path: []const u8) !void {
-        const raw = try std.fs.cwd().readFileAlloc(self.gpa, package_json_path, 256 * 1024);
+        const raw = try ioc.cwd().readFileAlloc(self.gpa, package_json_path, 256 * 1024);
         defer self.gpa.free(raw);
         try self.loadPluginFromText(std.mem.trim(u8, raw, " \t\r\n"), std.fs.path.dirname(package_json_path) orelse ".");
     }
@@ -203,7 +221,7 @@ pub const Host = struct {
             const text = if (resolver) |r| try r.resolve(r.ctx, self.gpa, e.plugin) else blk: {
                 const path = try std.fmt.allocPrint(self.gpa, "{s}/package.json", .{e.plugin});
                 defer self.gpa.free(path);
-                break :blk try std.fs.cwd().readFileAlloc(self.gpa, path, 256 * 1024);
+                break :blk try ioc.cwd().readFileAlloc(self.gpa, path, 256 * 1024);
             };
             const t = text orelse continue;
             defer self.gpa.free(t);
@@ -218,7 +236,7 @@ pub const Host = struct {
     pub fn recordEpisode(self: *Host, task_id: []const u8, summary: []const u8, outcome: memory.TaskOutcome) !void {
         try self.runtime.rememberEpisode(.{
             .task_id = task_id,
-            .ended_unix = std.time.timestamp(),
+            .ended_unix = ioc.nowSec(),
             .outcome = outcome,
             .summary = summary,
         });
@@ -226,7 +244,7 @@ pub const Host = struct {
 
     pub fn writeEvent(self: *Host, kind: []const u8, payload: std.json.Value) !void {
         if (self.event_log.path.len == 0) return;
-        try self.event_log.append(.{ .kind = kind, .ts_unix = std.time.timestamp(), .payload = payload });
+        try self.event_log.append(.{ .kind = kind, .ts_unix = ioc.nowSec(), .payload = payload });
     }
 };
 
@@ -235,7 +253,8 @@ test "host wires policy, tools and plugins" {
     const host = try Host.init(gpa, .{ .model = "test-model" }, .{ .workspace_root = "ws" });
     defer host.free();
 
-    try std.testing.expectEqual(@as(usize, 7), host.registry.count());
+    // 设计 7 + 图 5 + 回路 8：三层工具面必须都挂在同一个注册表上。
+    try std.testing.expectEqual(@as(usize, 20), host.registry.count());
     try std.testing.expect(host.policy.allows(.design_edit));
     try std.testing.expect(host.policy.allows(.run_tool));
     try std.testing.expect(host.kernel.bus != null);
@@ -245,6 +264,35 @@ test "host wires policy, tools and plugins" {
     var app = host.app();
     defer app.deinit();
     try std.testing.expect(app.tool_ctx.workspace != null);
+    try std.testing.expect(app.tool_ctx.graph_workspace != null);
+    try std.testing.expect(app.tool_ctx.loop_workspace != null);
+}
+
+test "host exposes the agent loop tool face" {
+    const gpa = std.testing.allocator;
+    const host = try Host.init(gpa, .{ .model = "m" }, .{});
+    defer host.free();
+
+    var app = host.app();
+    defer app.deinit();
+
+    // plan mode 只读：回路不能靠计划宣告自己有权写。
+    const plan_args = try ju.parseValue(gpa, "{\"goal\":\"pcb layout\",\"mode\":\"plan\",\"tasks\":[{\"id\":\"t1\",\"title\":\"stackup\"}]}");
+    defer ju.freeJsonValue(gpa, plan_args);
+    const plan_res = try app.callTool("loop_plan", plan_args);
+    defer ju.freeJsonValue(gpa, plan_res);
+    const plan = try ju.parseValue(gpa, ju.objStr(plan_res.object, "content"));
+    defer ju.freeJsonValue(gpa, plan);
+    try std.testing.expectEqualStrings("plan", ju.objStr(plan.object, "mode"));
+    try std.testing.expect(!plan.object.get("allows_write").?.bool);
+    try std.testing.expectEqual(@as(i64, 1), plan.object.get("open").?.integer);
+    try std.testing.expect(!plan.object.get("can_complete").?.bool);
+
+    // 措辞式终止条件一律拒绝。
+    const stop_args = try ju.parseValue(gpa, "{\"rule\":{\"kind\":\"prose\",\"criterion\":\"looks good enough\"},\"measurements\":[]}");
+    defer ju.freeJsonValue(gpa, stop_args);
+    // 措辞式终止条件不可判定：直接拒绝，不进入评估。
+    try std.testing.expectError(error.ProseStopRuleRejected, app.callTool("loop_stop_check", stop_args));
 }
 
 test "host loads dsh plugin manifest" {
