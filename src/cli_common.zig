@@ -6,6 +6,7 @@ const Allocator = std.mem.Allocator;
 const config = @import("config.zig");
 const llm = @import("core/llm.zig");
 const host = @import("host.zig");
+const ioc = @import("ioctx");
 
 /// 退出前必须 flush：用法与错误文本写在缓冲 writer 里，直接 exit 会丢失。
 pub fn exit(out: anytype, err: anytype, code: u8) noreturn {
@@ -32,7 +33,9 @@ pub fn hasFlag(argv: []const []const u8, name: []const u8) bool {
 /// 同名旗标可重复（例如多次 `--plugin`）。
 pub fn flagValues(gpa: Allocator, argv: []const []const u8, name: []const u8) ![]const []const u8 {
     var list: std.ArrayList([]const u8) = .empty;
-    errdefer list.deinit(gpa);
+    errdefer list.deinit(
+        gpa,
+    );
     var i: usize = 2;
     while (i < argv.len) : (i += 1) {
         if (std.mem.eql(u8, argv[i], name) and i + 1 < argv.len) {
@@ -40,12 +43,14 @@ pub fn flagValues(gpa: Allocator, argv: []const []const u8, name: []const u8) ![
             i += 1;
         }
     }
-    return list.toOwnedSlice(gpa);
+    return list.toOwnedSlice(
+        gpa,
+    );
 }
 
 pub fn resolveConfigPath(gpa: Allocator, argv: []const []const u8) ![]const u8 {
     if (flagValue(argv, "--config")) |p| return try gpa.dupe(u8, p);
-    if (std.process.getEnvVarOwned(gpa, "CUTECLAW_CONFIG")) |p| return p else |_| {}
+    if (ioc.envOwned(gpa, "CUTECLAW_CONFIG")) |p| return p else |_| {}
     return try std.fmt.allocPrint(gpa, "{s}/{s}", .{ config.default_data_dir, config.default_config_file });
 }
 
