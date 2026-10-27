@@ -1,0 +1,22 @@
+{
+  "name": "fea-simulation-evidence",
+  "version": "0.1.0",
+  "description": "仿真必须由可复现的求解运行产生：网格、边界条件与材料必须记录",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}
