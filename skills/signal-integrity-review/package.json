@@ -1,0 +1,22 @@
+{
+  "name": "signal-integrity-review",
+  "version": "0.1.0",
+  "description": "信号完整性技能：从叠层与实测几何推导阻抗与回流路径，不允许假设叠层",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}
