@@ -1,0 +1,22 @@
+{
+  "name": "graph-orchestrator",
+  "version": "0.1.0",
+  "description": "图执行技能：区分叙述顺序与真实数据依赖，判定工作形状并给出 fan-out 建议",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}
