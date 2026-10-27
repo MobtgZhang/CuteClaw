@@ -14,10 +14,12 @@ pub fn copyJsonValue(gpa: Allocator, v: std.json.Value) !std.json.Value {
             break :blk .{ .array = arr };
         },
         .object => blk: {
-            var obj = std.json.ObjectMap.init(gpa);
-            errdefer obj.deinit();
+            var obj = std.json.ObjectMap.empty;
+            errdefer obj.deinit(
+                gpa,
+            );
             var it = v.object.iterator();
-            while (it.next()) |e| try obj.put(try gpa.dupe(u8, e.key_ptr.*), try copyJsonValue(gpa, e.value_ptr.*));
+            while (it.next()) |e| try obj.put(gpa, try gpa.dupe(u8, e.key_ptr.*), try copyJsonValue(gpa, e.value_ptr.*));
             break :blk .{ .object = obj };
         },
     };
@@ -38,7 +40,9 @@ pub fn freeJsonValue(gpa: Allocator, v: std.json.Value) void {
                 gpa.free(e.key_ptr.*);
                 freeJsonValue(gpa, e.value_ptr.*);
             }
-            m.deinit();
+            m.deinit(
+                gpa,
+            );
         },
         else => {},
     }
@@ -66,7 +70,7 @@ pub fn objNum(obj: std.json.ObjectMap, key: []const u8) u64 {
 }
 
 pub fn putKey(gpa: Allocator, map: *std.json.ObjectMap, key: []const u8, value: std.json.Value) !void {
-    try map.put(try gpa.dupe(u8, key), value);
+    try map.put(gpa, try gpa.dupe(u8, key), value);
 }
 
 pub fn strVal(gpa: Allocator, s: []const u8) !std.json.Value {
@@ -78,7 +82,8 @@ pub fn newArr(gpa: Allocator) std.json.Value {
 }
 
 pub fn newObj(gpa: Allocator) std.json.Value {
-    return .{ .object = std.json.ObjectMap.init(gpa) };
+    _ = gpa;
+    return .{ .object = std.json.ObjectMap.empty };
 }
 
 pub fn stringifyAlloc(gpa: Allocator, v: std.json.Value) ![]const u8 {
