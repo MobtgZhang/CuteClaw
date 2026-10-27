@@ -37,6 +37,10 @@ pub const ToolCtx = struct {
     project: []const u8 = "",
     /// 工具层上下文（例如 design.Workspace），由调用方注入。
     workspace: ?*anyopaque = null,
+    /// 图执行层上下文（graph.Workspace）：与 workspace 分开，避免两个工作区互相指错。
+    graph_workspace: ?*anyopaque = null,
+    /// 回路层上下文（loop.Workspace）：hook / 审批 / 压缩 / 检查点 / 计划共用。
+    loop_workspace: ?*anyopaque = null,
 };
 
 pub const ToolFn = *const fn (ctx: *ToolCtx, args: std.json.Value) anyerror!ToolResult;
@@ -119,7 +123,9 @@ pub const Registry = struct {
                 .parameters = e.value_ptr.parameters,
             });
         }
-        return out.toOwnedSlice(self.gpa);
+        return out.toOwnedSlice(
+            self.gpa,
+        );
     }
 
     pub const ToolDefView = llm.ToolDef;
