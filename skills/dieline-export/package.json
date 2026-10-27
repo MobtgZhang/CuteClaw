@@ -1,0 +1,22 @@
+{
+  "name": "dieline-export",
+  "version": "0.1.0",
+  "description": "刀模导出技能：Cut / Crease / Perforation 必须分层，并检查材料利用率与出血",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}
