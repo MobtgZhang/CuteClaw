@@ -1,0 +1,22 @@
+{
+  "name": "tolerance-stackup",
+  "version": "0.1.0",
+  "description": "公差链技能：最坏情况与 RSS 累加，只接受可测量的贡献值",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}
