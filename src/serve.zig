@@ -4,6 +4,7 @@ const std = @import("std");
 const http = std.http;
 const cuteclaw = @import("cuteclaw");
 const runtime_ops = @import("runtime_ops.zig");
+const ioc = @import("ioctx");
 
 const max_body: usize = 2 * 1024 * 1024;
 
@@ -46,7 +47,7 @@ const InvokeApiReq = struct {
 const LogLevel = enum { error_only, info };
 
 fn logLevelFromEnv() LogLevel {
-    const v = std.posix.getenv("CUTECLAW_LOG") orelse return .info;
+    const v = ioc.env("CUTECLAW_LOG") orelse return .info;
     if (v.len == 0) return .info;
     if (std.ascii.eqlIgnoreCase(v, "error")) return .error_only;
     return .info;
@@ -62,7 +63,7 @@ fn targetPath(raw: []const u8) []const u8 {
 }
 
 fn logTimestamp(err: anytype) !void {
-    const ts = std.time.timestamp();
+    const ts = ioc.nowSec();
     try err.print("[{d}] ", .{ts});
 }
 
@@ -101,9 +102,9 @@ pub fn run(
     err: anytype,
 ) !void {
     const level = logLevelFromEnv();
-    const address = try std.net.Address.parseIp4("127.0.0.1", port);
-    var listener = try address.listen(.{ .reuse_address = true });
-    defer listener.deinit();
+    const address = try std.Io.net.IpAddress.parseIp4("127.0.0.1", port);
+    var listener = try std.Io.net.IpAddress.listen(&address, ioc.io(), .{ .reuse_address = true });
+    defer listener.deinit(ioc.io());
 
     try logBanner(err, store_path, config_path, port);
 
@@ -119,11 +120,11 @@ pub fn run(
     };
 
     while (true) {
-        const conn = try listener.accept();
+        const conn = try listener.accept(ioc.io());
         handleConnection(err, ctx, conn) catch |e| {
             logHandlerError(err, e) catch {};
         };
-        conn.stream.close();
+        std.Io.net.Stream.close(&conn, ioc.io());
     }
 }
 
@@ -148,8 +149,8 @@ fn methodStr(m: http.Method) []const u8 {
 
 fn healthJsonAllocFixed(al: std.mem.Allocator, store_path: []const u8, config_path: []const u8, exe_path: []const u8) ![]u8 {
     const root_owned: []const u8 = root: {
-        if (std.process.getEnvVarOwned(al, "CUTECLAW_ROOT")) |p| break :root p else |_| {}
-        break :root std.fs.cwd().realpathAlloc(al, ".") catch try al.dupe(u8, ".");
+        if (ioc.envOwned(al, "CUTECLAW_ROOT")) |p| break :root p else |_| {}
+        break :root ioc.cwd().realpathAlloc(al, ".") catch try al.dupe(u8, ".");
     };
     defer al.free(root_owned);
 
@@ -168,7 +169,7 @@ fn statusApiJsonAlloc(al: std.mem.Allocator, rt: *cuteclaw.ClawRuntime, store_pa
     const stdout_text = try runtime_ops.allocStatusText(al, rt, store_path, config_path);
     defer al.free(stdout_text);
 
-    const config_exists = if (std.fs.cwd().access(config_path, .{})) |_| true else |_| false;
+    const config_exists = if (ioc.cwd().access(config_path, .{})) |_| true else |_| false;
 
     const parsed_fmt =
         \\{{"raw":{s},"storePath":{s},"configPath":{s},"configExists":{},"episodic":{},"skills":{},"facts":{},"tasks_recorded":{},"tasks_succeeded":{},"audit_tail":{},"rollups":{}}}
@@ -211,16 +212,16 @@ fn readBody(al: std.mem.Allocator, request: *http.Server.Request, limit: usize) 
     return try body_reader.readAlloc(al, cl);
 }
 
-fn handleConnection(err: anytype, ctx: ServerCtx, conn: std.net.Server.Connection) !void {
+fn handleConnection(err: anytype, ctx: ServerCtx, conn: std.Io.net.Stream) !void {
     var arena = std.heap.ArenaAllocator.init(ctx.gpa);
     defer arena.deinit();
     const al = arena.allocator();
 
     var recv_buf: [8192]u8 = undefined;
     var send_buf: [65536]u8 = undefined;
-    var conn_reader = conn.stream.reader(&recv_buf);
-    var conn_writer = conn.stream.writer(&send_buf);
-    var hserv = http.Server.init(conn_reader.interface(), &conn_writer.interface);
+    var conn_reader = std.Io.net.Stream.reader(conn, ioc.io(), &recv_buf);
+    var conn_writer = std.Io.net.Stream.writer(conn, ioc.io(), &send_buf);
+    var hserv = http.Server.init(&conn_reader.interface, &conn_writer.interface);
 
     var request = try hserv.receiveHead();
     const path = targetPath(request.head.target);
@@ -279,7 +280,7 @@ fn handleConnection(err: anytype, ctx: ServerCtx, conn: std.net.Server.Connectio
     }
 
     if (method == .GET and std.mem.eql(u8, path, "/api/config")) {
-        var file = std.fs.cwd().openFile(ctx.config_path, .{}) catch |e| switch (e) {
+        var file = ioc.cwd().openFile(ctx.config_path, .{}) catch |e| switch (e) {
             error.FileNotFound => {
                 status_code = 404;
                 const p_js = try std.json.Stringify.valueAlloc(al, ctx.config_path, .{});
@@ -307,13 +308,13 @@ fn handleConnection(err: anytype, ctx: ServerCtx, conn: std.net.Server.Connectio
         };
         const cfg_dir = std.fs.path.dirname(ctx.config_path) orelse ".";
         const cfg_base = std.fs.path.basename(ctx.config_path);
-        const tmp_name = try std.fmt.allocPrint(al, ".{s}.validate.{d}.tmp", .{ cfg_base, std.time.nanoTimestamp() });
+        const tmp_name = try std.fmt.allocPrint(al, ".{s}.validate.{d}.tmp", .{ cfg_base, ioc.nowNs() });
         defer al.free(tmp_name);
         const tmp_path = try std.fs.path.join(al, &.{ cfg_dir, tmp_name });
         defer al.free(tmp_path);
-        try std.fs.cwd().makePath(cfg_dir);
-        try std.fs.cwd().writeFile(.{ .sub_path = tmp_path, .data = body_bytes });
-        defer std.fs.cwd().deleteFile(tmp_path) catch {};
+        try ioc.cwd().makePath(cfg_dir);
+        try ioc.cwd().writeFile(.{ .sub_path = tmp_path, .data = body_bytes });
+        defer ioc.cwd().deleteFile(tmp_path) catch {};
 
         var cfg = cuteclaw.config.loadApiConfigFromPath(al, tmp_path) catch {
             status_code = 400;
@@ -437,7 +438,7 @@ fn getStoreCommon(al: std.mem.Allocator, store_path: []const u8, request: *http.
         },
         else => return e,
     };
-    const json = try cuteclaw.persist.snapshotToJsonAlloc(&rt, al, std.time.timestamp());
+    const json = try cuteclaw.persist.snapshotToJsonAlloc(&rt, al, ioc.nowSec());
     status_code.* = 200;
     try request.respond(json, .{ .extra_headers = jsonHeader() });
 }
@@ -504,7 +505,7 @@ fn finishEvolve(
         error.FileNotFound => {},
         else => return e,
     };
-    const ts = std.time.timestamp();
+    const ts = ioc.nowSec();
     const d = rt.applyProposal(p, policy, semver, ts) catch {
         status_code.* = 502;
         try request.respond("{\"error\":\"apply_proposal_error\"}\n", .{ .status = .internal_server_error, .extra_headers = jsonHeader() });
@@ -608,11 +609,11 @@ fn postApiTask(al: std.mem.Allocator, ctx: ServerCtx, request: *http.Server.Requ
     };
     try rt.rememberEpisode(.{
         .task_id = parsed.value.taskId,
-        .ended_unix = std.time.timestamp(),
+        .ended_unix = ioc.nowSec(),
         .summary = parsed.value.summary,
         .outcome = oc,
     });
-    const ts = std.time.timestamp();
+    const ts = ioc.nowSec();
     try cuteclaw.persist.saveToPath(&rt, al, ctx.store_path, ts);
     const stdout_line = try std.fmt.allocPrint(al, "已追加情景并保存\n", .{});
     const out_js = try std.json.Stringify.valueAlloc(al, stdout_line, .{});
@@ -641,8 +642,8 @@ fn postApiInvoke(al: std.mem.Allocator, ctx: ServerCtx, request: *http.Server.Re
         error.FileNotFound => {},
         else => return e,
     };
-    try rt.metrics.recordSkillInvocation(parsed.value.skill, parsed.value.ok, std.time.timestamp());
-    try cuteclaw.persist.saveToPath(&rt, al, ctx.store_path, std.time.timestamp());
+    try rt.metrics.recordSkillInvocation(parsed.value.skill, parsed.value.ok, ioc.nowSec());
+    try cuteclaw.persist.saveToPath(&rt, al, ctx.store_path, ioc.nowSec());
     const stdout_line = try std.fmt.allocPrint(al, "已记录技能调用: {s} success={}\n", .{ parsed.value.skill, parsed.value.ok });
     const out_js = try std.json.Stringify.valueAlloc(al, stdout_line, .{});
     const resp = try std.fmt.allocPrint(al, "{{\"ok\":true,\"stdout\":{s}}}\n", .{out_js});
@@ -672,7 +673,7 @@ fn postApiImportStore(al: std.mem.Allocator, ctx: ServerCtx, request: *http.Serv
         try request.respond("{\"error\":\"import apply failed\"}\n", .{ .status = .bad_gateway, .extra_headers = jsonHeader() });
         return;
     };
-    try cuteclaw.persist.saveToPath(&rt, al, ctx.store_path, std.time.timestamp());
+    try cuteclaw.persist.saveToPath(&rt, al, ctx.store_path, ioc.nowSec());
     const stdout_line = try std.fmt.allocPrint(al, "已自 stdin 导入并写入 {s}\n", .{ctx.store_path});
     const out_js = try std.json.Stringify.valueAlloc(al, stdout_line, .{});
     const resp = try std.fmt.allocPrint(al, "{{\"ok\":true,\"stdout\":{s}}}\n", .{out_js});

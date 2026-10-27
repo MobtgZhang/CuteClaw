@@ -16,6 +16,7 @@ const host = @import("../host.zig");
 const http = @import("http.zig");
 const rpc = @import("rpc.zig");
 const ws = @import("websocket.zig");
+const ioc = @import("ioctx");
 
 pub const default_port: u16 = 8788;
 pub const default_bind: []const u8 = "127.0.0.1";
@@ -89,19 +90,19 @@ pub fn run(gpa: Allocator, h: *host.Host, opts: Options, err: *std.Io.Writer) !v
 
     var server = rpc.Rpc.init(gpa, &app);
 
-    var addr = try std.net.Address.parseIp(opts.bind, opts.port);
-    var listener = try addr.listen(.{ .reuse_address = true });
-    defer listener.deinit();
+    var addr = try std.Io.net.IpAddress.parseIp4(opts.bind, opts.port);
+    var listener = try std.Io.net.IpAddress.listen(&addr, ioc.io(), .{ .reuse_address = true });
+    defer listener.deinit(ioc.io());
 
     err.print("CuteClaw Design Agent 已监听 http://{s}:{d}（静态资源 {s}）\n", .{ opts.bind, opts.port, opts.static_root }) catch {};
     err.flush() catch {};
 
     while (true) {
-        var conn = listener.accept() catch |e| {
+        var conn = listener.accept(ioc.io()) catch |e| {
             err.print("accept 失败: {s}\n", .{@errorName(e)}) catch {};
             continue;
         };
-        defer conn.stream.close();
+        defer std.Io.net.Stream.close(&conn, ioc.io());
         handleConnection(gpa, &app, &server, &conn, opts, err) catch |e| {
             err.print("连接处理失败: {s}\n", .{@errorName(e)}) catch {};
             err.flush() catch {};
@@ -109,12 +110,12 @@ pub fn run(gpa: Allocator, h: *host.Host, opts: Options, err: *std.Io.Writer) !v
     }
 }
 
-fn handleConnection(gpa: Allocator, app: *http.App, server: *rpc.Rpc, conn: *std.net.Server.Connection, opts: Options, err: *std.Io.Writer) !void {
+fn handleConnection(gpa: Allocator, app: *http.App, server: *rpc.Rpc, conn: *std.Io.net.Stream, opts: Options, err: *std.Io.Writer) !void {
     var recv_buf: [8192]u8 = undefined;
     var send_buf: [65536]u8 = undefined;
-    var conn_reader = conn.stream.reader(&recv_buf);
-    var conn_writer = conn.stream.writer(&send_buf);
-    const reader = conn_reader.interface();
+    var conn_reader = std.Io.net.Stream.reader(conn.*, ioc.io(), &recv_buf);
+    var conn_writer = std.Io.net.Stream.writer(conn.*, ioc.io(), &send_buf);
+    const reader = &conn_reader.interface;
     const writer = &conn_writer.interface;
 
     var hserv = std.http.Server.init(reader, writer);
@@ -136,7 +137,7 @@ fn handleConnection(gpa: Allocator, app: *http.App, server: *rpc.Rpc, conn: *std
         try writer.flush();
         // 升级之后改用直接的 socket 读写：std.Io 的 reader/writer 在长连接上会
         // 把缓冲里的残留字节当成 EOF，帧也就永远发不出去。
-        try wsLoop(gpa, server, conn.stream, reader.buffer[reader.seek..reader.end]);
+        try wsLoop(gpa, server, conn.*, reader.buffer[reader.seek..reader.end]);
         return;
     }
 
@@ -178,7 +179,7 @@ fn handleConnection(gpa: Allocator, app: *http.App, server: *rpc.Rpc, conn: *std
     if (!std.mem.startsWith(u8, route, "/api/")) {
         const path = try staticFilePath(gpa, opts.static_root, route);
         defer gpa.free(path);
-        const raw = std.fs.cwd().readFileAlloc(gpa, path, max_body_bytes) catch |e| {
+        const raw = ioc.cwd().readFileAlloc(gpa, path, max_body_bytes) catch |e| {
             if (e == error.FileNotFound) {
                 const resp = try http.errorResponse(gpa, 404, "not found");
                 defer resp.free(gpa);
@@ -201,16 +202,21 @@ fn handleConnection(gpa: Allocator, app: *http.App, server: *rpc.Rpc, conn: *std
     err.print("{s} {s} {d}\n", .{ method, route, resp.status }) catch {};
 }
 
-fn wsLoop(gpa: Allocator, server: *rpc.Rpc, stream: std.net.Stream, pending: []const u8) !void {
+fn wsLoop(gpa: Allocator, server: *rpc.Rpc, stream: std.Io.net.Stream, pending: []const u8) !void {
     var scratch: [4096]u8 = undefined;
     var acc: std.ArrayList(u8) = .empty;
-    defer acc.deinit(gpa);
+    defer acc.deinit(
+        gpa,
+    );
     try acc.appendSlice(gpa, pending);
+
+    var net_reader = std.Io.net.Stream.reader(stream, ioc.io(), &scratch);
+    const r = &net_reader.interface;
 
     var need_read = pending.len == 0;
     while (true) {
         if (need_read) {
-            const n = try posix.read(stream.handle, &scratch);
+            const n = try r.readSliceShort(&scratch);
             if (n == 0) return; // 对端关闭
             try acc.appendSlice(gpa, scratch[0..n]);
         }
@@ -250,15 +256,14 @@ fn wsLoop(gpa: Allocator, server: *rpc.Rpc, stream: std.net.Stream, pending: []c
     }
 }
 
-fn writeFrame(gpa: Allocator, stream: std.net.Stream, opcode: ws.Opcode, payload: []const u8) !void {
+fn writeFrame(gpa: Allocator, stream: std.Io.net.Stream, opcode: ws.Opcode, payload: []const u8) !void {
     const encoded = try ws.encodeFrame(gpa, opcode, payload);
     defer gpa.free(encoded);
-    var written: usize = 0;
-    while (written < encoded.len) {
-        const n = try posix.write(stream.handle, encoded[written..]);
-        if (n == 0) return error.WriteFailed;
-        written += n;
-    }
+    var wbuf: [4096]u8 = undefined;
+    var w = std.Io.net.Stream.writer(stream, ioc.io(), &wbuf);
+    const wref = &w.interface;
+    try wref.writeAll(encoded);
+    try wref.flush();
 }
 
 fn statusFromCode(code: u16) std.http.Status {
