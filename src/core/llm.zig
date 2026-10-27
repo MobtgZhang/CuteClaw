@@ -4,6 +4,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ju = @import("jsonutil.zig");
+const ioc = @import("ioctx");
 
 pub const copyJsonValue = ju.copyJsonValue;
 pub const freeJsonValue = ju.freeJsonValue;
@@ -135,11 +136,11 @@ pub const Deadline = struct {
     timeout_ms: u64,
 
     pub fn init(timeout_ms: u64) Deadline {
-        return .{ .start_ms = std.time.milliTimestamp(), .timeout_ms = timeout_ms };
+        return .{ .start_ms = ioc.nowMs(), .timeout_ms = timeout_ms };
     }
 
     pub fn elapsedMs(self: Deadline) i64 {
-        return std.time.milliTimestamp() - self.start_ms;
+        return ioc.nowMs() - self.start_ms;
     }
 
     pub fn exceeded(self: Deadline) bool {
@@ -219,7 +220,9 @@ fn parseOpenAiCompletion(gpa: Allocator, root: std.json.ObjectMap) !Completion {
     if (ju.objGet(msg, "tool_calls")) |calls_v| {
         if (calls_v == .array) {
             var calls: std.ArrayList(ToolCall) = .empty;
-            errdefer calls.deinit(gpa);
+            errdefer calls.deinit(
+                gpa,
+            );
             for (calls_v.array.items) |cv| {
                 if (cv != .object) continue;
                 const call = cv.object;
@@ -239,7 +242,9 @@ fn parseOpenAiCompletion(gpa: Allocator, root: std.json.ObjectMap) !Completion {
                     .arguments = args_text,
                 });
             }
-            out.tool_calls = try calls.toOwnedSlice(gpa);
+            out.tool_calls = try calls.toOwnedSlice(
+                gpa,
+            );
         }
     }
     return out;
@@ -248,9 +253,13 @@ fn parseOpenAiCompletion(gpa: Allocator, root: std.json.ObjectMap) !Completion {
 fn parseAnthropicCompletion(gpa: Allocator, root: std.json.ObjectMap) !Completion {
     var out: Completion = .{};
     var content: std.ArrayList(u8) = .empty;
-    defer content.deinit(gpa);
+    defer content.deinit(
+        gpa,
+    );
     var calls: std.ArrayList(ToolCall) = .empty;
-    defer calls.deinit(gpa);
+    defer calls.deinit(
+        gpa,
+    );
 
     const blocks_v = ju.objGet(root, "content") orelse return error.NoChoices;
     if (blocks_v == .array) {
@@ -272,8 +281,12 @@ fn parseAnthropicCompletion(gpa: Allocator, root: std.json.ObjectMap) !Completio
         }
     }
 
-    out.content = try content.toOwnedSlice(gpa);
-    out.tool_calls = try calls.toOwnedSlice(gpa);
+    out.content = try content.toOwnedSlice(
+        gpa,
+    );
+    out.tool_calls = try calls.toOwnedSlice(
+        gpa,
+    );
     const stop_reason = ju.objStr(root, "stop_reason");
     if (std.mem.eql(u8, stop_reason, "tool_use")) {
         out.finish_reason = .tool_calls;
@@ -341,7 +354,9 @@ pub const StreamState = struct {
                 .arguments = gpa.dupe(u8, c.arguments.items) catch "{}",
             }) catch {};
         }
-        out.tool_calls = calls.toOwnedSlice(gpa) catch &.{};
+        out.tool_calls = calls.toOwnedSlice(
+            gpa,
+        ) catch &.{};
         out.finish_reason = if (out.tool_calls.len > 0) .tool_calls else .stop;
         return out;
     }
@@ -507,7 +522,9 @@ pub const Client = struct {
         var list: std.ArrayList(std.http.Header) = .empty;
         errdefer {
             for (list.items) |h| gpa.free(h.value);
-            list.deinit(gpa);
+            list.deinit(
+                gpa,
+            );
         }
         try list.append(gpa, .{ .name = "content-type", .value = try gpa.dupe(u8, "application/json") });
         if (self.config.api_key.len > 0) {
@@ -523,7 +540,9 @@ pub const Client = struct {
         for (self.config.extra_headers) |h| {
             try list.append(gpa, .{ .name = h.name, .value = try gpa.dupe(u8, h.value) });
         }
-        return try list.toOwnedSlice(gpa);
+        return try list.toOwnedSlice(
+            gpa,
+        );
     }
 
     /// `headerList` 返回的头由调用方持有：值需要逐个释放后再释放列表本身。
@@ -547,8 +566,10 @@ pub const Client = struct {
     }
 
     fn buildOpenAiRequest(self: *const Client, gpa: Allocator, messages: []const Message, tools: []const ToolDef, stream: bool) !std.json.Value {
-        var root = std.json.ObjectMap.init(gpa);
-        errdefer root.deinit();
+        var root = std.json.ObjectMap.empty;
+        errdefer root.deinit(
+            gpa,
+        );
         try ju.putKey(gpa, &root, "model", try ju.strVal(gpa, self.config.model));
         if (stream) try ju.putKey(gpa, &root, "stream", .{ .bool = true });
 
@@ -602,14 +623,18 @@ pub const Client = struct {
     }
 
     fn buildAnthropicRequest(self: *const Client, gpa: Allocator, messages: []const Message, tools: []const ToolDef, stream: bool) !std.json.Value {
-        var root = std.json.ObjectMap.init(gpa);
-        errdefer root.deinit();
+        var root = std.json.ObjectMap.empty;
+        errdefer root.deinit(
+            gpa,
+        );
         try ju.putKey(gpa, &root, "model", try ju.strVal(gpa, self.config.model));
         try ju.putKey(gpa, &root, "max_tokens", .{ .integer = @intCast(self.config.max_tokens orelse 1024) });
         if (stream) try ju.putKey(gpa, &root, "stream", .{ .bool = true });
 
         var system_text: std.ArrayList(u8) = .empty;
-        defer system_text.deinit(gpa);
+        defer system_text.deinit(
+            gpa,
+        );
         var arr = ju.newArr(gpa);
 
         for (messages) |m| {
@@ -678,7 +703,7 @@ pub const Client = struct {
         const url = try self.endpoint(gpa);
         defer gpa.free(url);
 
-        var client = std.http.Client{ .allocator = gpa, .read_buffer_size = 65536 };
+        var client = std.http.Client{ .allocator = gpa, .io = ioc.io(), .read_buffer_size = 65536 };
         defer client.deinit();
 
         var out = std.Io.Writer.Allocating.init(gpa);
@@ -692,7 +717,7 @@ pub const Client = struct {
             .extra_headers = hdrs,
             .response_writer = &out.writer,
         });
-        const status = @intFromEnum(res.status);
+        const status = @backingInt(res.status);
         if (status < 200 or status >= 300) return error.HttpStatus;
         if (out.written().len == 0) return error.EmptyResponse;
         if (deadline.exceeded()) return error.ReadTimeout;
@@ -717,7 +742,7 @@ pub const Client = struct {
         const url = try self.endpoint(gpa);
         defer gpa.free(url);
 
-        var client = std.http.Client{ .allocator = gpa, .read_buffer_size = 65536 };
+        var client = std.http.Client{ .allocator = gpa, .io = ioc.io(), .read_buffer_size = 65536 };
         defer client.deinit();
 
         const uri = try std.Uri.parse(url);
@@ -728,7 +753,7 @@ pub const Client = struct {
 
         var redirect_buf: [4096]u8 = undefined;
         var resp = try req.receiveHead(&redirect_buf);
-        const status = @intFromEnum(resp.head.status);
+        const status = @backingInt(resp.head.status);
         if (status < 200 or status >= 300) return error.HttpStatus;
 
         var transfer_buf: [8192]u8 = undefined;
@@ -847,7 +872,9 @@ test "sse line accumulation" {
     defer state.deinit(gpa);
 
     var seen: std.ArrayList(u8) = .empty;
-    defer seen.deinit(gpa);
+    defer seen.deinit(
+        gpa,
+    );
 
     const sink = StreamSink{ .ctx = &seen, .emit = testSinkEmit };
 
