@@ -10,21 +10,24 @@ Chinese version: [README_CN.md](README_CN.md).
 
 1. **Understands a design** — project state, design constraints, PCB nets and ratsnest, enclosure cavity.
 2. **Executes the design** — it reads and validates real engineering files (KiCad, FreeCAD, STEP) instead of only giving advice.
-3. **Evolves its design capability** — a Harness²-style `Propose → Probe → Compose → Evaluate → Promote` loop learns better strategies from engineering verification.
+3. **Runs the design process as a graph** — work is planned as an auditable dependency graph, executed layer by layer, and stopped in front of human approval gates ([Graph Flow / Graph Loop](#graph-flow--graph-loop)).
+4. **Evolves its design capability** — a Harness²-style `Propose → Probe → Compose → Evaluate → Promote` loop learns better strategies from engineering verification.
 
 One rule is non-negotiable: evolution may rewrite strategies, skills and tool guidance, but it can **never** relax safety clearance, electrical rules or mechanical interference. Guardrails are excluded from the editable component set (`src/evolution/proposer.zig`).
 
 ## Highlights
 
 - **Pure-Zig agent host** — agent loop, OpenAI-compatible / Anthropic-compatible LLM client (non-streaming and SSE), session message chain, tool registry with guardrail hooks, Cordis-style event bus, plugin kernel, capability-based sandbox.
+- **Agent Loop with rules enforced in code** — binary termination predicates, retry/stall/no-progress caps, hooks that can only tighten a decision, approval modes where `deny` beats every grant, compaction that cannot shorten the audit trail, append-only checkpoints, subagents that start from zero context with disjoint write scopes ([Agent Loop](#agent-loop)).
 - **Hard constraints first** — candidates that violate hard rules are eliminated before any optimization cost is compared. A shorter ratsnest never beats a DRC violation.
+- **Graph-based execution** — 54 engineering skill templates distilled from real PCB / CAD / packaging agent skills on GitHub, with narration-edge detection, layer-by-layer execution, declarative predicate routing, bounded verify/repair loops and code-side iteration caps.
 - **DeepSeek Harness (Cordis) plugin compatibility**, pinned to `manifestVersion 1`; plugin processes are controlled external tools and never hold scheduling authority.
 - **Deterministic core library** — layered memory, explicit working set, gated skill evolution, metrics and audit, JSON snapshot persistence (schema v1).
 - **Server** — REST + SSE + WebSocket (`GET /api/ws`, text frames are JSON-RPC), serving the Vue build as its static root.
 
 ## Requirements
 
-- [Zig](https://ziglang.org/) **0.15.2+** (matches `minimum_zig_version` in `build.zig.zon`)
+- [Zig](https://ziglang.org/) **0.17.0** (matches `minimum_zig_version` in `build.zig.zon`)
 - Optional frontend toolchain: Node.js **20+** for `apps/web`
 - Optional runtime for the DSH plugin bridge: Node.js (the bridge is an external tool process; the control plane stays in Zig)
 
@@ -48,6 +51,16 @@ zig build run -- design drc canonical \
   --constraints '[{"id":"clearance","kind":"clearance","limit":0.3,"direction":"min","severity":"hard"}]' \
   --path benchmarks/pcb/canonical.kicad_pcb
 
+# Graph Flow: plan the work shape before deciding whether to fan out
+zig build run -- graph plan pcb-design-review
+zig build run -- graph run graph-orchestrator
+zig build run -- graph gate --measurements '[{"kind":"drc_errors","value":0,"ref":"board","measured":false}]'
+
+# Agent Loop: plan mode is read-only, prose stop rules are rejected
+zig build run -- loop status
+zig build run -- loop plan --input '{"goal":"pcb stackup","mode":"plan","tasks":[{"id":"t1","title":"stackup"}]}'
+zig build run -- loop stop-check --input '{"rule":{"kind":"prose","criterion":"looks good enough"},"measurements":[]}'
+
 # Plugins (DeepSeek Harness / Cordis compatible)
 zig build run -- plugin load skills/design-review/package.json
 zig build run -- plugin call design-review review --plugin skills/design-review/package.json \
@@ -61,7 +74,7 @@ zig build run -- serve --port 8788
 One-shot verification of everything:
 
 ```bash
-make check      # build + test + smoke + dsh + benchmark + drc + schemas
+make check      # build + test + smoke + dsh + benchmark + drc + schemas + graph
 make live-chat  # one real conversation against the test API (default /data/api.json)
 ```
 
@@ -90,6 +103,7 @@ Versioned design artifacts
 | Events | `src/core/events.zig` | Cordis-style dispatch modes (`emit` / `waterfall` / `parallel` / `serial` / `bail`) + JSONL event log |
 | Design engine | `src/design/` | Project state, constraints, geometry, PCB/ratsnest, DRC validation, tool surface |
 | Adapters | `src/adapters/` | `.kicad_pcb` parsing, FreeCAD documents, STEP geometry |
+| Graph execution | `src/graph/` | Dependency graph, layers, gates, adversarial review, structured state + checkpoints, skill catalog |
 | Plugins | `src/plugins/` | Cordis/DSH manifest, permissions, kernel, MCP, bridge invocation |
 | Sandbox | `src/sandbox/policy.zig` | Capability set + workspace path boundary (out-of-root reads are refused) |
 | Evolution | `src/evolution/` | Propose–Probe–Compose–Evaluate–Promote with gate, history and rollback |
@@ -114,6 +128,67 @@ The tool surface exposed to the model (`src/design/tools.zig`):
 Constraint kinds cover `trace_width`, `clearance`, `hole_diameter`, `board_area`, `rat_length`, `iterations`, `enclosure_wall`, `fit_clearance`, `courtyard_gap`, `board_margin`, `drc_errors`, each with `min`/`max` direction and `hard`/`soft` severity.
 
 Ratsnest length is computed as the minimum spanning tree per net.
+
+## Graph Flow / Graph Loop
+
+The design process does not rely on "the model deciding it is good enough". Work is first expressed as an **auditable dependency graph**, then executed layer by layer. Planning authority stays in Zig: plugins provide capabilities, the graph decides what runs first, what may fan out, and what must stop in front of a human approval gate.
+
+Two principles:
+
+1. **An edge is real only when work flows through it.** If the upstream node writes no artifact and the downstream node never reads `node.<id>.`, that edge is narration, not a constraint, and must be removed before execution.
+2. **Work shape decides topology.** Only genuinely independent units are worth fanning out; serial work arranged into a graph only adds coordination cost. Google DeepMind × MIT ("Towards a Science of Scaling Agent Systems"): teams win about 80% on splittable tasks and lose on every configuration for serial work.
+
+Rules enforced by `src/graph/gates.zig` before any side effect:
+
+- every skill must carry a **verifiable binary termination criterion** and an iteration cap written in code;
+- a `verify` node must re-derive from a declared source — it cannot ratify its own synthesis;
+- a `gate` must have a dependency: a gate cannot self-confirm;
+- any work node using a `transform` capability must depend on a `calibrate` node — validate the tool before validating the result;
+- a fan-in must emit as many entries as it received; past the batch cap it runs another round instead of silently dropping entries;
+- irreversible actions (placing an order, sending files to a supplier, writing to a store) require a transitive approval ancestor;
+- inferred values (`measured = false`) cannot pass a measured-only hard gate;
+- conditional routing: the next layer is chosen from a measured result, not from narrative order — a branch that was not routed is not executed and does not count towards fan-in completeness, while `verify` and `approval` nodes are never treated as branch candidates.
+
+Tool surface (`src/graph/tools.zig`, the same entry point and permission checks as the agent and plugins): `graph_skills`, `graph_plan`, `graph_run`, `graph_gate`, `graph_checkpoint`.
+
+Skill catalog: **54 templates** in `src/graph/skills.zig` — 25 graph & loop, 13 PCB / electronics, 11 CAD / mechanical, 5 packaging — distilled from `reports/plan-3.md` plus a GitHub sweep of real engineering skills. Full sources, star counts and the plan-3 tool-category mapping: [docs/graph-flow.md](docs/graph-flow.md).
+
+Five loop patterns, each requiring a binary exit check and a hard cap: `headless while-loop`, `evaluator-optimizer` (generation and review separated), `meta / prompt-refine`, `orchestrator fan-out`, `scheduled / triggered`. `loop-pattern-picker` chooses the pattern from the work shape; `graph-runtime-audit` reports what the runtime actually executed.
+
+Checkpoints: `graph run` writes the execution record to memory and to `CUTECLAW_CHECKPOINT_DIR` (or `--checkpoint-dir`). A checkpoint contains `results` (completed nodes) and `pending` (nodes still owed) — **a checkpoint is not proof of completion**. `graph run --resume` restores it without re-running completed nodes.
+
+```bash
+zig build run -- graph skills
+zig build run -- graph plan work-shape-audit          # narration edges vs real edges
+zig build run -- graph run signal-integrity-review
+zig build run -- graph run durable-state-loop demo --resume
+zig build run -- graph checkpoint graph-orchestrator  # what is still owed
+```
+
+## Agent Loop
+
+The graph decides **what runs**; the loop decides **what the agent is allowed to do while it runs**. `src/loop/` carries the runtime rules taken from Claude Code, Codex and Hermes Agent, and each rule is enforced in code instead of being left to the model's judgement:
+
+- termination must be a **binary predicate** — a prose rule ("looks good enough") is rejected before any side effect;
+- per-tool retry caps, stall detection (same tool with the same arguments twice in a row) and a no-progress stop; interrupts re-route immediately, queued messages are handled only after the current step;
+- hooks follow Claude Code exit-code semantics (`0` = pass, `2` = deny) and can only **tighten** a decision, never relax a gate — a hook that tries to grant more is recorded as `ignored_grants` and ignored; compound commands are checked segment by segment, so `echo ok && rm -rf` cannot slip through;
+- approval modes (`never` / `on_request` / `untrusted`) where `deny` beats allow rules and session grants, and irreversible actions always require a human even under an "always allow";
+- compaction respects the token budget but **never shortens the audit trail**; protected items (system prompt, termination criterion, gate failures, plan, last N turns) are kept verbatim;
+- one checkpoint per turn; rewind is refused for irreversible effects — a pushed commit or a sent request cannot be undone by restoring file contents; the flight recorder is append-only;
+- subagents start from zero context, write scopes must be disjoint, blocking tasks cannot be delegated, nothing is dispatched before the plan review and nothing is merged before the result review;
+- `SKILL.md` (agentskills.io) is the description layer with progressive disclosure — an untriggered skill does not occupy context — while the Cordis `package.json` `manifestVersion 1` remains the runtime contract; the two coexist and neither replaces the other;
+- the learning loop (trajectory capture, drafting skills after complex tasks, periodic nudge) can never write to a guardrail prefix.
+
+Tool surface (`src/loop/tools.zig`, same entry point and permission checks as the agent and plugins): `loop_plan`, `loop_delegate`, `loop_compact`, `loop_checkpoint`, `loop_stop_check`, `loop_hooks`, `loop_approval`, `loop_skills`.
+
+```bash
+zig build run -- loop status
+zig build run -- loop plan --input '{"goal":"enclosure fit","mode":"plan","tasks":[{"id":"t1","title":"wall thickness"}]}'
+zig build run -- loop delegate --input '{"tasks":[{"id":"a","goal":"route","write_scope":["src/graph"]},{"id":"b","goal":"review","write_scope":["src/graph/gates.zig"]}],"review":{"stage":"plan_review","passed":true}}'
+zig build run -- loop approval --input '{"mode":"untrusted","tool":"shell","command":"git reset --hard HEAD","rules":[{"tool":"*","pattern":"git","decision":"allow"}],"grants":[{"tool":"*","pattern":"git"}]}'
+```
+
+Details: [docs/agent-loop.md](docs/agent-loop.md). Smoke test: `tests/agent_loop.sh` (`make loop`).
 
 ## Evolution engine
 
@@ -181,6 +256,8 @@ Global options (most subcommands): `--store PATH` (`CUTECLAW_STORE`, default `.c
 | `chat [--message TEXT]` | Single-turn conversation, or interactive REPL; `--session`, `--json` |
 | `plugin list\|load\|enable\|disable\|call` | DSH/Cordis compatible plugins |
 | `design open\|constraint\|read\|drc\|fit\|rank\|skills` | Project, constraints, KiCad read, DRC, enclosure fit, ranking |
+| `graph skills\|plan\|run\|gate\|checkpoint` | Graph Flow: skill catalog, work-shape audit, layered execution, hard gates, checkpoint resume (`--checkpoint-dir`, `--resume`) |
+| `loop status\|plan\|delegate\|compact\|checkpoint\|stop-check\|hooks\|approval\|skills` | Agent Loop: plan mode, subagent dispatch, compaction audit, checkpoints, binary stop predicates, hooks, approval, `SKILL.md` (`--input JSON`) |
 | `serve [--port N]` | HTTP + SSE + WebSocket on `127.0.0.1` only (default 8788 or `CUTECLAW_SERVE_PORT`) |
 | `version` / `help` | Version and usage |
 
@@ -228,7 +305,7 @@ npm run dev        # make app-dev (Vite 5173, /api proxied to 8788)
 make check
 ```
 
-runs `zig build`, `zig build test` (94 test blocks in `src/`, plus the CLI entry point), and the shell suites:
+runs `zig build`, `zig build test` (124 test blocks in `src/`, plus the CLI entry point), and the shell suites:
 
 | Script | Asserts |
 |--------|---------|
@@ -237,6 +314,7 @@ runs `zig build`, `zig build test` (94 test blocks in `src/`, plus the CLI entry
 | `tests/design_benchmark.sh` | Hard-constraint elimination before cost ranking; plugin result matches the benchmark |
 | `tests/design_drc.sh` | Hard violations reported, clean board passes, positive fit clearance |
 | `tests/schemas.sh` | Schema required/property counts |
+| `tests/graph.sh` | 54-skill catalog, narration-edge detection, execution stops at the approval gate, checkpoint resume, measured-only gate, conditional routing, plugin tools |
 | `tests/live_chat.sh` | Real conversation + tool loop against the test API; skips when unreachable |
 | `tests/agent_web_fetch_search.sh` | Network + TLS smoke through `agent-tool` `web_fetch` (needs network) |
 
@@ -246,6 +324,7 @@ runs `zig build`, `zig build test` (94 test blocks in `src/`, plus the CLI entry
 src/            Zig core library + agent host
   core/         agent loop, llm, session, tools, events, jsonutil
   design/       project, constraints, geometry, pcb, validation, tools
+  graph/        graph model, state + checkpoints, gates, executor, skill catalog, tool surface
   adapters/     kicad, freecad, step
   plugins/      manifest, permissions, registry, mcp, kernel, dsh_bridge
   sandbox/      capability + path policy
@@ -265,7 +344,7 @@ reports/        planning documents (plan-1, plan-2)
 
 ## Documentation
 
-[docs/README.md](docs/README.md) is the index. Most useful starting points: [docs/architecture.md](docs/architecture.md), [docs/design-agent.md](docs/design-agent.md), [docs/dsh-plugins.md](docs/dsh-plugins.md), [docs/vue-app.md](docs/vue-app.md), [docs/quickstart.md](docs/quickstart.md), [docs/format.md](docs/format.md), [docs/roadmap.md](docs/roadmap.md).
+[docs/README.md](docs/README.md) is the index. Most useful starting points: [docs/architecture.md](docs/architecture.md), [docs/graph-flow.md](docs/graph-flow.md), [docs/design-agent.md](docs/design-agent.md), [docs/dsh-plugins.md](docs/dsh-plugins.md), [docs/vue-app.md](docs/vue-app.md), [docs/quickstart.md](docs/quickstart.md), [docs/format.md](docs/format.md), [docs/roadmap.md](docs/roadmap.md).
 
 Changes are tracked in [CHANGELOG.md](CHANGELOG.md); the version single source of truth is `src/version.zig`.
 
