@@ -4,9 +4,17 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const ioctx_mod = b.createModule(.{
+        .root_source_file = b.path("src/ioctx.zig"),
+        .target = target,
+    });
+
     const mod = b.addModule("cuteclaw", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
+        .imports = &.{
+            .{ .name = "ioctx", .module = ioctx_mod },
+        },
     });
 
     const exe = b.addExecutable(.{
@@ -17,6 +25,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .imports = &.{
                 .{ .name = "cuteclaw", .module = mod },
+                .{ .name = "ioctx", .module = ioctx_mod },
             },
         }),
     });
@@ -26,9 +35,8 @@ pub fn build(b: *std.Build) void {
     const run_cmd = b.addRunArtifact(exe);
     run_step.dependOn(&run_cmd.step);
     run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
+    // Zig 0.17: arguments after `zig build run --` are passed through here.
+    run_cmd.addPassthruArgs();
 
     // zig test 只分析真正被引用到的文件，所以测试根是 src/tests.zig：
     // 它显式引用全部源文件，让每个文件里的 test 块都能被收集执行。
@@ -36,6 +44,9 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("tests.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "ioctx", .module = ioctx_mod },
+        },
     });
     const test_exe = b.addTest(.{ .root_module = test_mod });
     const run_tests = b.addRunArtifact(test_exe);
