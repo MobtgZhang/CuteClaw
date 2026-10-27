@@ -76,11 +76,15 @@ pub fn parsePackageJson(gpa: Allocator, text: []const u8) !PluginManifest {
                     if (ju.objGet(profile, "bundles")) |b_v| {
                         if (b_v == .array) {
                             var list: std.ArrayList([]const u8) = .empty;
-                            errdefer list.deinit(gpa);
+                            errdefer list.deinit(
+                                gpa,
+                            );
                             for (b_v.array.items) |item| {
                                 if (item == .string) try list.append(gpa, try gpa.dupe(u8, item.string));
                             }
-                            m.profile_bundles = try list.toOwnedSlice(gpa);
+                            m.profile_bundles = try list.toOwnedSlice(
+                                gpa,
+                            );
                         }
                     }
                 }
@@ -92,11 +96,15 @@ pub fn parsePackageJson(gpa: Allocator, text: []const u8) !PluginManifest {
                     if (ju.objGet(client, "inject")) |i_v| {
                         if (i_v == .array) {
                             var list: std.ArrayList([]const u8) = .empty;
-                            errdefer list.deinit(gpa);
+                            errdefer list.deinit(
+                                gpa,
+                            );
                             for (i_v.array.items) |item| {
                                 if (item == .string) try list.append(gpa, try gpa.dupe(u8, item.string));
                             }
-                            m.client_inject = try list.toOwnedSlice(gpa);
+                            m.client_inject = try list.toOwnedSlice(
+                                gpa,
+                            );
                         }
                     }
                     m.external = ju.objGet(client, "external") != null;
@@ -114,11 +122,15 @@ pub fn parsePackageJson(gpa: Allocator, text: []const u8) !PluginManifest {
     if (ju.objGet(root, "capabilities")) |c_v| {
         if (c_v == .array) {
             var list: std.ArrayList([]const u8) = .empty;
-            errdefer list.deinit(gpa);
+            errdefer list.deinit(
+                gpa,
+            );
             for (c_v.array.items) |item| {
                 if (item == .string) try list.append(gpa, try gpa.dupe(u8, item.string));
             }
-            m.capabilities = try list.toOwnedSlice(gpa);
+            m.capabilities = try list.toOwnedSlice(
+                gpa,
+            );
         }
     }
 
@@ -176,7 +188,9 @@ pub fn parsePatchYaml(gpa: Allocator, text: []const u8) ![]PatchEntry {
             gpa.free(e.plugin);
             ju.freeJsonValue(gpa, e.config);
         }
-        out.deinit(gpa);
+        out.deinit(
+            gpa,
+        );
     }
 
     var current: ?PatchEntry = null;
@@ -213,7 +227,9 @@ pub fn parsePatchYaml(gpa: Allocator, text: []const u8) ![]PatchEntry {
         }
     }
     if (current) |c| try out.append(gpa, c);
-    return out.toOwnedSlice(gpa);
+    return out.toOwnedSlice(
+        gpa,
+    );
 }
 
 test "dsh package.json manifest" {
