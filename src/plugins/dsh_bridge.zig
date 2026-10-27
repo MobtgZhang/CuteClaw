@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const ju = @import("../core/jsonutil.zig");
+const ioc = @import("ioctx");
 
 const Allocator = std.mem.Allocator;
 
@@ -45,7 +46,9 @@ pub fn buildEnv(gpa: Allocator, inv: Invocation) ![]EnvVar {
             gpa.free(e.name);
             gpa.free(e.value);
         }
-        list.deinit(gpa);
+        list.deinit(
+            gpa,
+        );
     }
     const pairs = [_][2][]const u8{
         .{ "PLUGIN_ROOT", inv.plugin_root },
@@ -54,7 +57,9 @@ pub fn buildEnv(gpa: Allocator, inv: Invocation) ![]EnvVar {
         .{ "CUTECLAW_TOOL", inv.tool },
     };
     for (pairs) |p| try list.append(gpa, .{ .name = try gpa.dupe(u8, p[0]), .value = try gpa.dupe(u8, p[1]) });
-    return list.toOwnedSlice(gpa);
+    return list.toOwnedSlice(
+        gpa,
+    );
 }
 
 pub fn freeEnv(gpa: Allocator, env: []EnvVar) void {
@@ -110,28 +115,29 @@ pub fn run(gpa: Allocator, inv: Invocation) !PluginOutput {
     const stdin_text = try buildStdin(gpa, inv);
     defer gpa.free(stdin_text);
 
-    var child = std.process.Child.init(&.{ inv.node_bin, inv.bridge_path }, gpa);
-    child.stdin_behavior = .Pipe;
-    child.stdout_behavior = .Pipe;
-    child.stderr_behavior = .Ignore;
-
     // 继承父进程环境（PATH 等），再叠加插件专用变量；否则 node 无法被解析。
-    var env_map = try std.process.getEnvMap(gpa);
+    var env_map = try ioc.envTable().createMap(gpa);
     defer env_map.deinit();
     for (env) |e| try env_map.put(e.name, e.value);
-    child.env_map = &env_map;
 
-    try child.spawn();
+    var child = try std.process.spawn(ioc.io(), .{
+        .argv = &.{ inv.node_bin, inv.bridge_path },
+        .environ_map = &env_map,
+        .stdin = .pipe,
+        .stdout = .pipe,
+        .stderr = .ignore,
+    });
     if (child.stdin) |stdin_file| {
-        try stdin_file.writeAll(stdin_text);
+        const stdin = ioc.File.wrap(stdin_file);
+        try stdin.writeAll(stdin_text);
         // 关闭后让 `wait()` 的 cleanupStreams 不再重复关闭同一个 fd。
-        stdin_file.close();
+        stdin.close();
         child.stdin = null;
     }
-    const raw = try child.stdout.?.readToEndAlloc(gpa, 1024 * 1024);
+    const raw = try ioc.File.wrap(child.stdout.?).readToEndAlloc(gpa, 1024 * 1024);
     defer gpa.free(raw);
 
-    const term = try child.wait();
+    const term = try child.wait(ioc.io());
 
     // 桥接把 JSON-RPC 错误写在 stdout 里：先解析响应，解析成功就按响应内容返回，
     // 只有拿不到响应时才把非零退出码当作进程级失败。
@@ -140,7 +146,7 @@ pub fn run(gpa: Allocator, inv: Invocation) !PluginOutput {
         if (e != error.InvalidOutput) return e;
         if (std.mem.eql(u8, @typeName(@TypeOf(term)), @typeName(std.process.Child.Term))) {
             switch (term) {
-                .Exited => |code| if (code != 0) return error.PluginFailed,
+                .exited => |code| if (code != 0) return error.PluginFailed,
                 else => return error.PluginFailed,
             }
         }
