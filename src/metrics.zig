@@ -1,6 +1,7 @@
 //! 任务与技能级信号、审计日志与滚动统计（可持久化）。
 
 const std = @import("std");
+const array_hash_map = std.array_hash_map;
 
 const Allocator = std.mem.Allocator;
 
@@ -46,7 +47,7 @@ const RollupInternal = struct {
 
 pub const MetricsRegistry = struct {
     gpa: Allocator,
-    rollups: std.StringArrayHashMap(RollupInternal),
+    rollups: array_hash_map.String(RollupInternal),
     audit: std.ArrayList(AuditEntry),
     audit_cap: usize,
     tasks_recorded: u64,
@@ -55,7 +56,7 @@ pub const MetricsRegistry = struct {
     pub fn init(gpa: Allocator) MetricsRegistry {
         return .{
             .gpa = gpa,
-            .rollups = std.StringArrayHashMap(RollupInternal).init(gpa),
+            .rollups = array_hash_map.String(RollupInternal).empty,
             .audit = .empty,
             .audit_cap = 512,
             .tasks_recorded = 0,
@@ -68,7 +69,7 @@ pub const MetricsRegistry = struct {
         while (it.next()) |e| {
             self.gpa.free(e.key_ptr.*);
         }
-        self.rollups.deinit();
+        self.rollups.deinit(self.gpa);
         for (self.audit.items) |a| {
             self.gpa.free(a.skill_name);
             self.gpa.free(a.policy);
@@ -118,7 +119,7 @@ pub const MetricsRegistry = struct {
         }
         const owned = try self.gpa.dupe(u8, skill_name);
         errdefer self.gpa.free(owned);
-        try self.rollups.put(owned, .{
+        try self.rollups.put(self.gpa, owned, .{
             .invocations = 1,
             .successes = if (success) @as(u32, 1) else 0,
             .failures = if (success) @as(u32, 0) else 1,
@@ -156,7 +157,7 @@ pub const MetricsRegistry = struct {
             } else {
                 const owned = try self.gpa.dupe(u8, skill_name);
                 errdefer self.gpa.free(owned);
-                try self.rollups.put(owned, .{
+                try self.rollups.put(self.gpa, owned, .{
                     .invocations = 0,
                     .successes = 0,
                     .failures = 0,
@@ -186,7 +187,7 @@ pub const MetricsRegistry = struct {
         }
         const owned = try self.gpa.dupe(u8, r.skill_name);
         errdefer self.gpa.free(owned);
-        try self.rollups.put(owned, .{
+        try self.rollups.put(self.gpa, owned, .{
             .invocations = r.invocations,
             .successes = r.successes,
             .failures = r.failures,
