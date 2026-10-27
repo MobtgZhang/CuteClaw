@@ -1,5 +1,6 @@
 //! Agent cache 下的 memory 目录 CLI（与 web 项目布局一致：cache/projects/<project>/memory）
 const std = @import("std");
+const ioc = @import("ioctx");
 
 fn eql(a: []const u8, b: []const u8) bool {
     return std.mem.eql(u8, a, b);
@@ -84,7 +85,7 @@ fn isSafeRel(rel: []const u8) bool {
 }
 
 fn cmdMemoryList(gpa: std.mem.Allocator, out: anytype, err: anytype, root: []const u8) !void {
-    std.fs.cwd().access(root, .{}) catch {
+    ioc.cwd().access(root, .{}) catch {
         try err.print("目录不存在: {s}\n", .{root});
         err.flush() catch {};
         std.process.exit(1);
@@ -107,7 +108,7 @@ fn walkMemoryRel(
         try std.fs.path.join(gpa, &.{ root_base, sub });
     defer if (sub.len != 0) gpa.free(cur);
 
-    var d = std.fs.cwd().openDir(cur, .{ .iterate = true }) catch return;
+    var d = ioc.cwd().openDir(cur, .{ .iterate = true }) catch return;
     defer d.close();
     var it = d.iterate();
     while (try it.next()) |ent| {
@@ -137,7 +138,7 @@ fn cmdMemoryGet(gpa: std.mem.Allocator, out: anytype, err: anytype, root: []cons
         std.process.exit(2);
     };
     defer gpa.free(full);
-    const data = std.fs.cwd().readFileAlloc(gpa, full, 8 * 1024 * 1024) catch |e| switch (e) {
+    const data = ioc.cwd().readFileAlloc(gpa, full, 8 * 1024 * 1024) catch |e| switch (e) {
         error.FileNotFound => {
             try err.print("未找到: {s}\n", .{rel});
             err.flush() catch {};
@@ -161,10 +162,10 @@ fn cmdMemoryPut(gpa: std.mem.Allocator, err: anytype, root: []const u8, rel: []c
         err.flush() catch {};
         std.process.exit(2);
     };
-    try std.fs.cwd().makePath(parent);
-    const file = try std.fs.cwd().createFile(full, .{});
+    try ioc.cwd().makePath(parent);
+    const file = try ioc.cwd().createFile(full, .{});
     defer file.close();
-    const stdin = std.fs.File.stdin();
+    const stdin = ioc.File.stdin();
     var buf: [8192]u8 = undefined;
     while (true) {
         const n = try stdin.read(&buf);
@@ -180,7 +181,7 @@ fn cmdMemoryRm(gpa: std.mem.Allocator, err: anytype, root: []const u8, rel: []co
         std.process.exit(2);
     };
     defer gpa.free(full);
-    std.fs.cwd().deleteFile(full) catch |e| switch (e) {
+    ioc.cwd().deleteFile(full) catch |e| switch (e) {
         error.FileNotFound => {
             try err.print("未找到: {s}\n", .{rel});
             err.flush() catch {};
