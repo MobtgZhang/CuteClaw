@@ -54,7 +54,7 @@ pub const SkillVersion = struct {
 };
 
 test "task outcome tag size" {
-    try std.testing.expect(@intFromEnum(TaskOutcome.success) >= 0);
+    try std.testing.expect(@backingInt(TaskOutcome.success) >= 0);
 }
 
 test "outcome roundtrip strings" {
