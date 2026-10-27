@@ -2,6 +2,7 @@
 //! 密钥仅通过「密钥文件路径」或环境变量名引用，不把明文密钥写入 JSON。
 
 const std = @import("std");
+const ioc = @import("ioctx");
 
 const Allocator = std.mem.Allocator;
 
@@ -102,7 +103,9 @@ fn dupeJsonToOwned(gpa: Allocator, j: ApiConfigJson) !ApiConfigOwned {
             gpa.free(h.name);
             gpa.free(h.value);
         }
-        header_list.deinit(gpa);
+        header_list.deinit(
+            gpa,
+        );
     }
     for (j.extra_headers) |eh| {
         try header_list.append(gpa, .{
@@ -110,7 +113,9 @@ fn dupeJsonToOwned(gpa: Allocator, j: ApiConfigJson) !ApiConfigOwned {
             .value = try gpa.dupe(u8, eh.value),
         });
     }
-    const headers_slice = try header_list.toOwnedSlice(gpa);
+    const headers_slice = try header_list.toOwnedSlice(
+        gpa,
+    );
 
     return .{
         .schema_version = j.schema_version,
@@ -128,7 +133,7 @@ fn dupeJsonToOwned(gpa: Allocator, j: ApiConfigJson) !ApiConfigOwned {
 /// 从路径读取并复制为 `ApiConfigOwned`（文件不存在则返回 `error.FileNotFound`）。
 /// 另可能返回 `error.UnsupportedApiConfigSchema` 与 JSON 解析错误。
 pub fn loadApiConfigFromPath(gpa: Allocator, path: []const u8) !ApiConfigOwned {
-    var file = try std.fs.cwd().openFile(path, .{});
+    var file = try ioc.cwd().openFile(path, .{});
     defer file.close();
     const data = try file.readToEndAlloc(gpa, max_config_file_bytes);
     defer gpa.free(data);
@@ -152,8 +157,8 @@ pub fn defaultApiConfigJsonPretty(gpa: Allocator) Allocator.Error![]u8 {
 pub fn writeApiConfigAtomic(gpa: Allocator, path: []const u8, json_bytes: []const u8) !void {
     const dirname = std.fs.path.dirname(path) orelse ".";
     const file_name = std.fs.path.basename(path);
-    try std.fs.cwd().makePath(dirname);
-    var dir = try std.fs.cwd().openDir(dirname, .{});
+    try ioc.cwd().makePath(dirname);
+    var dir = try ioc.cwd().openDir(dirname, .{});
     defer dir.close();
     const tmp_name = try std.fmt.allocPrint(gpa, "{s}.tmp", .{file_name});
     defer gpa.free(tmp_name);
@@ -172,7 +177,7 @@ pub fn writeDefaultApiConfigToPath(gpa: Allocator, path: []const u8) !void {
 /// 返回值由 `gpa` 分配，调用方 `defer gpa.free(slice)`；无密钥时返回 `null`。
 pub fn loadApiKeyMaterial(gpa: Allocator, cfg: *const ApiConfigOwned) !?[]u8 {
     if (cfg.api_key_file.len > 0) {
-        const raw = std.fs.cwd().readFileAlloc(gpa, cfg.api_key_file, 64 * 1024) catch |e| switch (e) {
+        const raw = ioc.cwd().readFileAlloc(gpa, cfg.api_key_file, 64 * 1024) catch |e| switch (e) {
             error.FileNotFound => return null,
             else => return e,
         };
@@ -181,7 +186,7 @@ pub fn loadApiKeyMaterial(gpa: Allocator, cfg: *const ApiConfigOwned) !?[]u8 {
         if (trimmed.len == 0) return null;
         return try gpa.dupe(u8, trimmed);
     }
-    const from_env = std.process.getEnvVarOwned(gpa, cfg.api_key_env) catch |e| switch (e) {
+    const from_env = ioc.envOwned(gpa, cfg.api_key_env) catch |e| switch (e) {
         error.EnvironmentVariableNotFound => return null,
         else => |err| return err,
     };
