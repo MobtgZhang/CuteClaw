@@ -67,7 +67,9 @@ pub const Report = struct {
 /// 收集一次 DRC 的测量值：每个被检查对象一条，ref 标注来源。
 pub fn measurements(gpa: Allocator, board: *const pcb.Board) ![]constraints.Measurement {
     var out: std.ArrayList(constraints.Measurement) = .empty;
-    errdefer out.deinit(gpa);
+    errdefer out.deinit(
+        gpa,
+    );
 
     try out.append(gpa, .{
         .kind = .trace_width,
@@ -117,7 +119,9 @@ pub fn measurements(gpa: Allocator, board: *const pcb.Board) ![]constraints.Meas
         try out.append(gpa, .{ .kind = .hole_diameter, .value = h.diameter, .ref = try gpa.dupe(u8, h.ref) });
     }
 
-    return out.toOwnedSlice(gpa);
+    return out.toOwnedSlice(
+        gpa,
+    );
 }
 
 pub fn runDrc(gpa: Allocator, board: *const pcb.Board, set: *const constraints.ConstraintSet) !Report {
@@ -137,7 +141,9 @@ pub fn runDrc(gpa: Allocator, board: *const pcb.Board, set: *const constraints.C
             gpa.free(i.ref);
             gpa.free(i.message);
         }
-        issues.deinit(gpa);
+        issues.deinit(
+            gpa,
+        );
     }
 
     var hard: usize = 0;
@@ -164,7 +170,9 @@ pub fn runDrc(gpa: Allocator, board: *const pcb.Board, set: *const constraints.C
 
     return .{
         .gpa = gpa,
-        .issues = try issues.toOwnedSlice(gpa),
+        .issues = try issues.toOwnedSlice(
+            gpa,
+        ),
         .hard_count = hard,
         .soft_count = soft,
     };
