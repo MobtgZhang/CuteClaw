@@ -28,7 +28,9 @@ pub fn sha1(gpa: Allocator, data: []const u8) ![20]u8 {
 
     const ml = @as(u64, data.len) * 8;
     var message = std.ArrayList(u8).empty;
-    defer message.deinit(gpa);
+    defer message.deinit(
+        gpa,
+    );
     try message.appendSlice(gpa, data);
     try message.append(gpa, 0x80);
     while (message.items.len % 64 != 56) try message.append(gpa, 0);
@@ -175,14 +177,16 @@ pub fn parseFrame(gpa: Allocator, bytes: []const u8) !Frame {
     const opcode = first & 0x0F;
     if (opcode > 0xA) return error.BadFrame;
 
-    return .{ .opcode = @enumFromInt(opcode), .payload = payload, .consumed = header + length };
+    return .{ .opcode = @fromBackingInt(@intCast(opcode)), .payload = payload, .consumed = header + length };
 }
 
 pub fn encodeFrame(gpa: Allocator, opcode: Opcode, payload: []const u8) ![]const u8 {
     var out: std.ArrayList(u8) = .empty;
-    errdefer out.deinit(gpa);
+    errdefer out.deinit(
+        gpa,
+    );
 
-    try out.append(gpa, 0x80 | @intFromEnum(opcode));
+    try out.append(gpa, 0x80 | @backingInt(opcode));
     if (payload.len < 126) {
         try out.append(gpa, @intCast(payload.len));
     } else if (payload.len < 65536) {
@@ -197,7 +201,9 @@ pub fn encodeFrame(gpa: Allocator, opcode: Opcode, payload: []const u8) ![]const
         }
     }
     try out.appendSlice(gpa, payload);
-    return out.toOwnedSlice(gpa);
+    return out.toOwnedSlice(
+        gpa,
+    );
 }
 
 test "websocket accept key" {
