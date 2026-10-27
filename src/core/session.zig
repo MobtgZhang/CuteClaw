@@ -47,7 +47,9 @@ pub const Session = struct {
                 self.gpa.free(tc.name);
                 self.gpa.free(tc.arguments);
             }
-            calls.deinit(self.gpa);
+            calls.deinit(
+                self.gpa,
+            );
         }
         for (m.tool_calls) |tc| {
             try calls.append(self.gpa, .{
@@ -72,19 +74,25 @@ pub const Session = struct {
         copy.content = try self.gpa.dupe(u8, m.content);
         copy.reasoning = try self.gpa.dupe(u8, m.reasoning);
         copy.tool_call_id = try self.gpa.dupe(u8, m.tool_call_id);
-        copy.tool_calls = try calls.toOwnedSlice(self.gpa);
+        copy.tool_calls = try calls.toOwnedSlice(
+            self.gpa,
+        );
         try self.messages.append(self.gpa, copy);
     }
 
     /// 含 system 提示词的完整消息链（调用方负责释放切片与各元素）。
     pub fn prompt(self: *Session) ![]llm.Message {
         var out: std.ArrayList(llm.Message) = .empty;
-        errdefer out.deinit(self.gpa);
+        errdefer out.deinit(
+            self.gpa,
+        );
         if (self.system_prompt.len > 0) {
             try out.append(self.gpa, .{ .role = .system, .content = self.system_prompt });
         }
         for (self.messages.items) |m| try out.append(self.gpa, m);
-        return out.toOwnedSlice(self.gpa);
+        return out.toOwnedSlice(
+            self.gpa,
+        );
     }
 
     pub fn freePrompt(gpa: Allocator, items: []llm.Message) void {
