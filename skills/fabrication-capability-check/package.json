@@ -1,0 +1,22 @@
+{
+  "name": "fabrication-capability-check",
+  "version": "0.1.0",
+  "description": "工厂能力对照技能：设计规则必须与工厂公布能力逐项对照，对照不上的规则只能算未验证",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}
