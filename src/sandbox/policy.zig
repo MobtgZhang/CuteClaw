@@ -1,6 +1,7 @@
 //! 权限与沙箱：能力开关 + 工作区路径边界。控制平面在 Zig 内，外部工具进程仍受此策略约束。
 
 const std = @import("std");
+const ioc = @import("ioctx");
 const Allocator = std.mem.Allocator;
 
 pub const Capability = enum {
@@ -77,7 +78,7 @@ pub const Policy = struct {
         if (std.fs.path.isAbsolute(self.workspace_root)) return self.gpa.dupe(u8, self.workspace_root);
         const trimmed = std.mem.trim(u8, self.workspace_root, "/");
         // 无法解析当前目录时按最小权限处理：宁可拒绝，也不放行越界路径。
-        const cwd = std.fs.cwd().realpathAlloc(self.gpa, ".") catch return error.PathOutsideWorkspace;
+        const cwd = ioc.cwd().realpathAlloc(self.gpa, ".") catch return error.PathOutsideWorkspace;
         defer self.gpa.free(cwd);
         if (trimmed.len == 0 or std.mem.eql(u8, trimmed, ".")) return self.gpa.dupe(u8, cwd);
         return std.fmt.allocPrint(self.gpa, "{s}/{s}", .{ cwd, trimmed });
@@ -117,7 +118,7 @@ test "相对工作区以当前目录为基准" {
     const gpa = std.testing.allocator;
     var p = Policy.init(gpa, ".");
     try p.grant(.read_file);
-    const cwd = try std.fs.cwd().realpathAlloc(gpa, ".");
+    const cwd = try ioc.cwd().realpathAlloc(gpa, ".");
     defer gpa.free(cwd);
     const inside = try std.fmt.allocPrint(gpa, "{s}/board.kicad_pcb", .{cwd});
     defer gpa.free(inside);
