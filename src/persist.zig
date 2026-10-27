@@ -6,6 +6,7 @@ const working = @import("working.zig");
 const metrics = @import("metrics.zig");
 const claw = @import("claw.zig");
 const ver = @import("version.zig");
+const ioc = @import("ioctx");
 
 const Allocator = std.mem.Allocator;
 
@@ -81,11 +82,15 @@ fn freeDocumentSlices(gpa: Allocator, doc: StoreDocumentV1) void {
 /// 将当前运行时导出为 JSON（调用方 `defer allocator.free(bytes)`）。
 pub fn snapshotToJsonAlloc(rt: *const claw.ClawRuntime, gpa: Allocator, saved_unix: i64) ![]u8 {
     var roll = std.ArrayList(metrics.SkillRollup).empty;
-    defer roll.deinit(gpa);
+    defer roll.deinit(
+        gpa,
+    );
     try rt.metrics.rollupSnapshot(gpa, &roll);
 
     var episodic_json: std.ArrayList(EpisodicJson) = .empty;
-    defer episodic_json.deinit(gpa);
+    defer episodic_json.deinit(
+        gpa,
+    );
     for (rt.episodic.items) |e| {
         try episodic_json.append(gpa, .{
             .task_id = e.task_id,
@@ -96,7 +101,9 @@ pub fn snapshotToJsonAlloc(rt: *const claw.ClawRuntime, gpa: Allocator, saved_un
     }
 
     var skills_json: std.ArrayList(SkillJson) = .empty;
-    defer skills_json.deinit(gpa);
+    defer skills_json.deinit(
+        gpa,
+    );
     for (rt.skills.items) |s| {
         try skills_json.append(gpa, .{
             .name = s.name,
@@ -108,7 +115,9 @@ pub fn snapshotToJsonAlloc(rt: *const claw.ClawRuntime, gpa: Allocator, saved_un
     }
 
     var facts_json: std.ArrayList(FactJson) = .empty;
-    defer facts_json.deinit(gpa);
+    defer facts_json.deinit(
+        gpa,
+    );
     for (rt.facts.items) |f| {
         try facts_json.append(gpa, .{
             .key = f.key,
@@ -118,7 +127,9 @@ pub fn snapshotToJsonAlloc(rt: *const claw.ClawRuntime, gpa: Allocator, saved_un
     }
 
     var roll_json: std.ArrayList(RollupJson) = .empty;
-    defer roll_json.deinit(gpa);
+    defer roll_json.deinit(
+        gpa,
+    );
     for (roll.items) |r| {
         try roll_json.append(gpa, .{
             .skill_name = r.skill_name,
@@ -130,7 +141,9 @@ pub fn snapshotToJsonAlloc(rt: *const claw.ClawRuntime, gpa: Allocator, saved_un
     }
 
     var audit_json: std.ArrayList(AuditJson) = .empty;
-    defer audit_json.deinit(gpa);
+    defer audit_json.deinit(
+        gpa,
+    );
     for (rt.metrics.audit.items) |a| {
         try audit_json.append(gpa, .{
             .unix_ts = a.unix_ts,
@@ -145,11 +158,21 @@ pub fn snapshotToJsonAlloc(rt: *const claw.ClawRuntime, gpa: Allocator, saved_un
         .schema_version = schema_version_v1,
         .library_version = ver.semantic,
         .saved_unix = saved_unix,
-        .episodic = try episodic_json.toOwnedSlice(gpa),
-        .skills = try skills_json.toOwnedSlice(gpa),
-        .facts = try facts_json.toOwnedSlice(gpa),
-        .rollups = try roll_json.toOwnedSlice(gpa),
-        .audit = try audit_json.toOwnedSlice(gpa),
+        .episodic = try episodic_json.toOwnedSlice(
+            gpa,
+        ),
+        .skills = try skills_json.toOwnedSlice(
+            gpa,
+        ),
+        .facts = try facts_json.toOwnedSlice(
+            gpa,
+        ),
+        .rollups = try roll_json.toOwnedSlice(
+            gpa,
+        ),
+        .audit = try audit_json.toOwnedSlice(
+            gpa,
+        ),
         .tasks_recorded = rt.metrics.tasks_recorded,
         .tasks_succeeded = rt.metrics.tasks_succeeded,
         .working = .{
@@ -167,7 +190,7 @@ pub fn snapshotToJsonAlloc(rt: *const claw.ClawRuntime, gpa: Allocator, saved_un
 }
 
 /// 在已打开的目录内原子写入 `name`（临时文件 `name.tmp` 再 rename）。
-pub fn saveToFile(rt: *const claw.ClawRuntime, dir: std.fs.Dir, gpa: Allocator, name: []const u8, saved_unix: i64) !void {
+pub fn saveToFile(rt: *const claw.ClawRuntime, dir: ioc.Dir, gpa: Allocator, name: []const u8, saved_unix: i64) !void {
     const json_bytes = try snapshotToJsonAlloc(rt, gpa, saved_unix);
     defer gpa.free(json_bytes);
 
@@ -182,14 +205,14 @@ pub fn saveToFile(rt: *const claw.ClawRuntime, dir: std.fs.Dir, gpa: Allocator, 
 pub fn saveToPath(rt: *const claw.ClawRuntime, gpa: Allocator, path: []const u8, saved_unix: i64) !void {
     const dirname = std.fs.path.dirname(path) orelse ".";
     const base = std.fs.path.basename(path);
-    try std.fs.cwd().makePath(dirname);
-    var d = try std.fs.cwd().openDir(dirname, .{});
+    try ioc.cwd().makePath(dirname);
+    var d = try ioc.cwd().openDir(dirname, .{});
     defer d.close();
     try saveToFile(rt, d, gpa, base, saved_unix);
 }
 
 /// 从已打开目录读取 `name` 并填充 `rt`。
-pub fn loadFromFile(rt: *claw.ClawRuntime, dir: std.fs.Dir, parse_gpa: Allocator, name: []const u8) !void {
+pub fn loadFromFile(rt: *claw.ClawRuntime, dir: ioc.Dir, parse_gpa: Allocator, name: []const u8) !void {
     var file = try dir.openFile(name, .{});
     defer file.close();
     const data = try file.readToEndAlloc(parse_gpa, max_file_bytes);
@@ -208,7 +231,7 @@ pub fn loadFromFile(rt: *claw.ClawRuntime, dir: std.fs.Dir, parse_gpa: Allocator
 pub fn loadFromPath(rt: *claw.ClawRuntime, parse_gpa: Allocator, path: []const u8) !void {
     const dirname = std.fs.path.dirname(path) orelse ".";
     const base = std.fs.path.basename(path);
-    var d = try std.fs.cwd().openDir(dirname, .{});
+    var d = try ioc.cwd().openDir(dirname, .{});
     defer d.close();
     try loadFromFile(rt, d, parse_gpa, base);
 }
@@ -311,11 +334,11 @@ test "save load roundtrip" {
     });
     try rt.setWorking(.{ .goal = "g", .next_step = "n" });
 
-    try saveToFile(&rt, tmp.dir, gpa, "store.json", 42);
+    try saveToFile(&rt, ioc.Dir.wrap(tmp.dir), gpa, "store.json", 42);
 
     var rt2 = claw.ClawRuntime.init(gpa);
     defer rt2.deinit();
-    try loadFromFile(&rt2, tmp.dir, gpa, "store.json");
+    try loadFromFile(&rt2, ioc.Dir.wrap(tmp.dir), gpa, "store.json");
 
     try std.testing.expectEqual(@as(usize, 1), rt2.episodic.items.len);
     try std.testing.expectEqualStrings("a", rt2.episodic.items[0].task_id);
