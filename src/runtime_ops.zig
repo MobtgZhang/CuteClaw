@@ -2,11 +2,12 @@
 
 const std = @import("std");
 const cuteclaw = @import("cuteclaw");
+const ioc = @import("ioctx");
 
 /// 与 `cuteclaw status` 文本输出一致。
 pub fn writeStatusText(w: anytype, rt: *cuteclaw.ClawRuntime, store_path: []const u8, config_path: []const u8) !void {
     try w.print("store: {s}\n", .{store_path});
-    if (std.fs.cwd().access(config_path, .{})) |_| {
+    if (ioc.cwd().access(config_path, .{})) |_| {
         try w.print("config: {s} (存在)\n", .{config_path});
     } else |_| {
         try w.print("config: {s} (不存在)\n", .{config_path});
@@ -23,20 +24,16 @@ pub fn writeStatusText(w: anytype, rt: *cuteclaw.ClawRuntime, store_path: []cons
         rt.metrics.rollupCount(),
     });
     if (!rt.working.isEmpty()) {
-        var wbuf: [512]u8 = undefined;
-        var fbs = std.io.fixedBufferStream(&wbuf);
-        try rt.working.formatBlock(fbs.writer());
-        try w.print("{s}", .{fbs.getWritten()});
+        try rt.working.formatBlock(w);
     }
 }
 
 /// 分配缓冲区并写入 status 文本；调用方 `defer gpa.free(slice)`。
 pub fn allocStatusText(gpa: std.mem.Allocator, rt: *cuteclaw.ClawRuntime, store_path: []const u8, config_path: []const u8) ![]u8 {
-    var list: std.ArrayListUnmanaged(u8) = .empty;
-    errdefer list.deinit(gpa);
-    const wr = list.writer(gpa);
-    try writeStatusText(wr, rt, store_path, config_path);
-    return try list.toOwnedSlice(gpa);
+    var out = std.Io.Writer.Allocating.init(gpa);
+    errdefer out.deinit();
+    try writeStatusText(&out.writer, rt, store_path, config_path);
+    return out.written();
 }
 
 /// 与 `cuteclaw config show` 文本输出一致（文件不存在时输出提示）。
@@ -61,13 +58,13 @@ pub fn writeConfigShowText(gpa: std.mem.Allocator, w: anytype, config_path: []co
 
     var key_file_ok = false;
     if (cfg.api_key_file.len > 0) {
-        if (std.fs.cwd().access(cfg.api_key_file, .{})) |_| {
+        if (ioc.cwd().access(cfg.api_key_file, .{})) |_| {
             key_file_ok = true;
         } else |_| {}
     }
     try w.print("api_key_file_readable: {}\n", .{key_file_ok});
 
-    if (std.process.getEnvVarOwned(gpa, cfg.api_key_env)) |v| {
+    if (ioc.envOwned(gpa, cfg.api_key_env)) |v| {
         defer gpa.free(v);
         try w.print("api_key_env_present: true (长度 {})\n", .{v.len});
     } else |_| {
@@ -88,10 +85,10 @@ pub fn writeConfigShowText(gpa: std.mem.Allocator, w: anytype, config_path: []co
 }
 
 pub fn allocConfigShowText(gpa: std.mem.Allocator, config_path: []const u8) ![]u8 {
-    var list: std.ArrayListUnmanaged(u8) = .empty;
-    errdefer list.deinit(gpa);
-    try writeConfigShowText(gpa, list.writer(gpa), config_path);
-    return try list.toOwnedSlice(gpa);
+    var out = std.Io.Writer.Allocating.init(gpa);
+    errdefer out.deinit();
+    try writeConfigShowText(gpa, &out.writer, config_path);
+    return out.written();
 }
 
 /// 与 `cuteclaw evolve` 成功路径下的 stdout 文案一致（供 HTTP /api/evolve）。
