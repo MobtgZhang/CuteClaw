@@ -119,7 +119,9 @@ pub fn parse(gpa: Allocator, text: []const u8) !Summary {
         if (std.mem.eql(u8, entity_type, "CARTESIAN_POINT")) {
             const args = trimmed[open + 1 ..];
             var nums: std.ArrayList(f64) = .empty;
-            defer nums.deinit(gpa);
+            defer nums.deinit(
+                gpa,
+            );
             var parts = std.mem.splitScalar(u8, args, ',');
             while (parts.next()) |part| {
                 var token = std.mem.trim(u8, part, " );\t'");

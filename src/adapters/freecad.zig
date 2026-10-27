@@ -3,6 +3,7 @@
 
 const std = @import("std");
 const ju = @import("../core/jsonutil.zig");
+const ioc = @import("ioctx");
 const geometry = @import("../design/geometry.zig");
 const pcb = @import("../design/pcb.zig");
 const project = @import("../design/project.zig");
@@ -34,11 +35,15 @@ pub const Options = struct {
 pub fn buildCommand(gpa: Allocator, opts: *const Options) ![]const []const u8 {
     if (opts.binary.len == 0) return error.BadCommand;
     var list: std.ArrayList([]const u8) = .empty;
-    errdefer list.deinit(gpa);
+    errdefer list.deinit(
+        gpa,
+    );
     try list.append(gpa, try gpa.dupe(u8, opts.binary));
     try list.append(gpa, try gpa.dupe(u8, "--console"));
     try list.append(gpa, try gpa.dupe(u8, opts.script));
-    return list.toOwnedSlice(gpa);
+    return list.toOwnedSlice(
+        gpa,
+    );
 }
 
 /// 参数化外壳脚本：按工程需求生成实体并输出 JSON（供 parseResult 消费）。
@@ -132,21 +137,21 @@ pub fn run(gpa: Allocator, opts: *const Options, policy: *const sandbox.Policy) 
         gpa.free(argv);
     }
 
-    var child = std.process.Child.init(argv, gpa);
-    child.stdout_behavior = .Pipe;
-    child.stderr_behavior = .Pipe;
-
-    try child.spawn();
+    var child = try std.process.spawn(ioc.io(), .{
+        .argv = argv,
+        .stdout = .pipe,
+        .stderr = .pipe,
+    });
     defer {
-        if (child.stdout) |f| f.close();
-        if (child.stderr) |f| f.close();
+        if (child.stdout) |f| ioc.File.wrap(f).close();
+        if (child.stderr) |f| ioc.File.wrap(f).close();
     }
 
     // 先读空 stdout 再 wait，避免管道写满造成父子进程互相等待。
-    const out = try (child.stdout.?).readToEndAlloc(gpa, 1024 * 1024);
-    const term = try child.wait();
+    const out = try ioc.File.wrap(child.stdout.?).readToEndAlloc(gpa, 1024 * 1024);
+    const term = try child.wait(ioc.io());
     switch (term) {
-        .Exited => |code| if (code != 0) return error.ProcessFailed,
+        .exited => |code| if (code != 0) return error.ProcessFailed,
         else => return error.ProcessFailed,
     }
     return out;

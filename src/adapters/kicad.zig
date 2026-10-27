@@ -40,7 +40,9 @@ const Token = union(enum) {
 
 pub fn parse(gpa: Allocator, text: []const u8) !SExp {
     var tokens: std.ArrayList(Token) = .empty;
-    defer tokens.deinit(gpa);
+    defer tokens.deinit(
+        gpa,
+    );
     try tokenize(gpa, text, &tokens);
 
     var index: usize = 0;
@@ -84,7 +86,9 @@ fn tokenize(gpa: Allocator, text: []const u8, out: *std.ArrayList(Token)) !void 
         }
         if (c == '"') {
             var buf: std.ArrayList(u8) = .empty;
-            errdefer buf.deinit(gpa);
+            errdefer buf.deinit(
+                gpa,
+            );
             i += 1;
             while (i < text.len and text[i] != '"') {
                 if (text[i] == '\\' and i + 1 < text.len) {
@@ -141,12 +145,16 @@ fn parseNode(gpa: Allocator, tokens: []Token, index: *usize) !SExp {
             var items: std.ArrayList(SExp) = .empty;
             errdefer {
                 for (items.items) |item| free(gpa, item);
-                items.deinit(gpa);
+                items.deinit(
+                    gpa,
+                );
             }
             while (index.* < tokens.len) {
                 if (tokens[index.*] == .close) {
                     index.* += 1;
-                    return .{ .list = try items.toOwnedSlice(gpa) };
+                    return .{ .list = try items.toOwnedSlice(
+                        gpa,
+                    ) };
                 }
                 const item = try parseNode(gpa, tokens, index);
                 errdefer free(gpa, item);
@@ -185,7 +193,9 @@ pub fn child(node: SExp, name: []const u8) ?SExp {
 
 pub fn collect(gpa: Allocator, node: SExp, name: []const u8) ![]SExp {
     var out: std.ArrayList(SExp) = .empty;
-    errdefer out.deinit(gpa);
+    errdefer out.deinit(
+        gpa,
+    );
     if (node == .list) {
         for (node.list) |item| {
             if (isBlock(item, name)) {
@@ -193,7 +203,9 @@ pub fn collect(gpa: Allocator, node: SExp, name: []const u8) ![]SExp {
             }
         }
     }
-    return out.toOwnedSlice(gpa);
+    return out.toOwnedSlice(
+        gpa,
+    );
 }
 
 fn numberAt(node: ?SExp, index: usize) ?f64 {
@@ -257,7 +269,9 @@ pub const FootprintInfo = struct {
 pub fn footprints(gpa: Allocator, root: SExp) ![]FootprintInfo {
     // 传入的可以是文档根（footprint 是子表），也可以直接是单个 footprint 表本身。
     var blocks: std.ArrayList(SExp) = .empty;
-    defer blocks.deinit(gpa);
+    defer blocks.deinit(
+        gpa,
+    );
     if (isBlock(root, "footprint")) {
         try blocks.append(gpa, root);
     } else {
@@ -269,7 +283,9 @@ pub fn footprints(gpa: Allocator, root: SExp) ![]FootprintInfo {
     var out: std.ArrayList(FootprintInfo) = .empty;
     errdefer {
         for (out.items) |f| f.free(gpa);
-        out.deinit(gpa);
+        out.deinit(
+            gpa,
+        );
     }
 
     for (blocks.items) |block| {
@@ -279,7 +295,9 @@ pub fn footprints(gpa: Allocator, root: SExp) ![]FootprintInfo {
         const rot = numberAt(at, 3) orelse 0.0;
 
         var pads: std.ArrayList(PadInfo) = .empty;
-        errdefer pads.deinit(gpa);
+        errdefer pads.deinit(
+            gpa,
+        );
 
         const pad_blocks = try collect(gpa, block, "pad");
         defer gpa.free(pad_blocks);
@@ -312,7 +330,9 @@ pub fn footprints(gpa: Allocator, root: SExp) ![]FootprintInfo {
         });
     }
 
-    return out.toOwnedSlice(gpa);
+    return out.toOwnedSlice(
+        gpa,
+    );
 }
 
 const Bounds = struct {
