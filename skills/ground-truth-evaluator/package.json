@@ -1,0 +1,22 @@
+{
+  "name": "ground-truth-evaluator",
+  "version": "0.1.0",
+  "description": "自进化必须由冻结的未见测试集评估：评估者必须独立于生成者",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}
