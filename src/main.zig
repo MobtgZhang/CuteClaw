@@ -4,9 +4,12 @@ const serve = @import("serve.zig");
 const runtime_ops = @import("runtime_ops.zig");
 const memory_cli = @import("memory_cli.zig");
 const agent_tool_cli = @import("agent_tool_cli.zig");
+const ioc = @import("ioctx");
 const cli_chat = cuteclaw.cli_chat;
 const cli_plugin = cuteclaw.cli_plugin;
 const cli_design = cuteclaw.cli_design;
+const cli_graph = cuteclaw.cli_graph;
+const cli_loop = cuteclaw.cli_loop;
 const cli_common = cuteclaw.cli_common;
 const server_serve = cuteclaw.server_serve;
 
@@ -19,21 +22,25 @@ const ProposalFile = struct {
     prohibitions: []const u8 = "",
 };
 
-pub fn main() !void {
-    var gpa_state = std.heap.DebugAllocator(.{}).init;
+pub fn main(init: std.process.Init.Minimal) !void {
+    ioc.setup(init);
+
+    var gpa_state: std.heap.DebugAllocator(.{}) = .init;
     defer _ = gpa_state.deinit();
     const gpa = gpa_state.allocator();
 
+    var arg_arena = std.heap.ArenaAllocator.init(gpa);
+    defer arg_arena.deinit();
+
     var out_buf: [16384]u8 = undefined;
-    var out_wr = std.fs.File.stdout().writer(&out_buf);
+    var out_wr = ioc.File.stdout().writer(&out_buf);
     const out = &out_wr.interface;
 
     var err_buf: [1024]u8 = undefined;
-    var err_wr = std.fs.File.stderr().writer(&err_buf);
+    var err_wr = ioc.File.stderr().writer(&err_buf);
     const err = &err_wr.interface;
 
-    const argv = try std.process.argsAlloc(gpa);
-    defer std.process.argsFree(gpa, argv);
+    const argv = try init.args.toSlice(arg_arena.allocator());
 
     if (argv.len < 2) {
         try printHelp(out);
@@ -129,6 +136,18 @@ pub fn main() !void {
         try err.flush();
         return;
     }
+    if (eql(cmd, "graph")) {
+        try cli_graph.run(gpa, out, err, argv, .{ .max_rounds = resolveMaxRounds(gpa, argv) });
+        try out.flush();
+        try err.flush();
+        return;
+    }
+    if (eql(cmd, "loop")) {
+        try cli_loop.run(gpa, out, err, argv, .{ .max_rounds = resolveMaxRounds(gpa, argv) });
+        try out.flush();
+        try err.flush();
+        return;
+    }
     if (eql(cmd, "working")) {
         try cmdWorking(gpa, out, err, argv);
         try out.flush();
@@ -207,7 +226,7 @@ fn resolveStorePath(gpa: std.mem.Allocator, argv: []const []const u8) ![]const u
     if (flagValue(argv, "--store")) |p| {
         return try gpa.dupe(u8, p);
     }
-    if (std.process.getEnvVarOwned(gpa, "CUTECLAW_STORE")) |p| return p else |_| {}
+    if (ioc.envOwned(gpa, "CUTECLAW_STORE")) |p| return p else |_| {}
     return try std.fmt.allocPrint(gpa, "{s}/{s}", .{ cuteclaw.config.default_data_dir, cuteclaw.config.default_store_file });
 }
 
@@ -215,7 +234,7 @@ fn resolveConfigPath(gpa: std.mem.Allocator, argv: []const []const u8) ![]const 
     if (flagValue(argv, "--config")) |p| {
         return try gpa.dupe(u8, p);
     }
-    if (std.process.getEnvVarOwned(gpa, "CUTECLAW_CONFIG")) |p| return p else |_| {}
+    if (ioc.envOwned(gpa, "CUTECLAW_CONFIG")) |p| return p else |_| {}
     return try std.fmt.allocPrint(gpa, "{s}/{s}", .{ cuteclaw.config.default_data_dir, cuteclaw.config.default_config_file });
 }
 
@@ -242,6 +261,8 @@ fn printHelp(out: anytype) !void {
         \\  chat [--message TEXT] 单轮对话（无 --message 进入交互式 REPL）；--session --json --config --store
         \\  plugin list | load <package.json> | enable|disable <id> | call <id> <tool> --args JSON
         \\  design open <id> | constraint <project> <id> <kind> <limit> <方向> <级别> | read <project> --path FILE | drc <project> | fit <project> <宽> <高> <壁厚> | rank <project> --file FILE | skills
+        \\  graph skills | plan <skill> [--input JSON] | run <skill> [project] [--input JSON] [--max-iterations N] [--measurements JSON] | gate --measurements JSON | checkpoint <skill>
+        \\  loop status | plan | delegate | compact | checkpoint | stop-check | hooks | approval | skills（--input JSON）
         \\  working show | working set <field> <文本...>   查看/更新工作区（field: goal|constraints|confirmed_facts|next_step）
         \\  fact add <key> <value...>  追加语义事实（confidence 固定 1.0）
         \\  config show     打印 API 配置（不输出密钥内容）
@@ -276,7 +297,7 @@ fn cmdDemo(gpa: std.mem.Allocator, out: anytype, argv: []const []const u8) !void
 
     try rt.rememberEpisode(.{
         .task_id = "demo-cli",
-        .ended_unix = std.time.timestamp(),
+        .ended_unix = ioc.nowSec(),
         .summary = "CLI demo 运行",
         .outcome = .success,
     });
@@ -294,22 +315,21 @@ fn cmdDemo(gpa: std.mem.Allocator, out: anytype, argv: []const []const u8) !void
         .prohibitions = "禁止在日志中打印密码",
     };
 
-    const ts = std.time.timestamp();
+    const ts = ioc.nowSec();
     if (rt.findSkillLast("email_login") == null) {
         _ = try rt.applyProposal(proposal, .auto_append_only, "0.1.0", ts);
     } else {
         try out.print("(技能 email_login 已存在，跳过重复合并)\n", .{});
     }
 
-    var wbuf: [512]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&wbuf);
+    var fbs = std.Io.Writer.Allocating.init(gpa);
     const demo_ws = cuteclaw.working.WorkingSet{
         .goal = "沉淀可复用登录规程",
         .next_step = "观测后续任务成功率",
     };
-    try demo_ws.formatBlock(fbs.writer());
+    try demo_ws.formatBlock(&fbs.writer);
 
-    try out.print("{s}\n", .{fbs.getWritten()});
+    try out.print("{s}\n", .{fbs.written()});
     try out.print("情景: {}  技能: {}  事实: {}  审计: {}\n", .{
         rt.episodic.items.len,
         rt.skills.items.len,
@@ -326,7 +346,7 @@ fn cmdInit(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []c
     const force = hasFlag(argv, "--force");
 
     var exists = false;
-    if (std.fs.cwd().access(store, .{})) |_| {
+    if (ioc.cwd().access(store, .{})) |_| {
         exists = true;
     } else |e| switch (e) {
         error.FileNotFound => {},
@@ -342,7 +362,7 @@ fn cmdInit(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []c
 
     var rt = cuteclaw.ClawRuntime.init(gpa);
     defer rt.deinit();
-    try cuteclaw.persist.saveToPath(&rt, gpa, store, std.time.timestamp());
+    try cuteclaw.persist.saveToPath(&rt, gpa, store, ioc.nowSec());
     try out.print("已初始化空快照: {s}\n", .{store});
 }
 
@@ -377,7 +397,7 @@ fn cmdExport(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const [
     defer rt.deinit();
     try cuteclaw.persist.loadFromPath(&rt, gpa, store);
 
-    const json_bytes = try cuteclaw.persist.snapshotToJsonAlloc(&rt, gpa, std.time.timestamp());
+    const json_bytes = try cuteclaw.persist.snapshotToJsonAlloc(&rt, gpa, ioc.nowSec());
     defer gpa.free(json_bytes);
     try out.print("{s}\n", .{json_bytes});
 }
@@ -386,7 +406,7 @@ fn cmdImport(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const [
     const store = try resolveStorePath(gpa, argv);
     defer gpa.free(store);
 
-    const stdin = std.fs.File.stdin();
+    const stdin = ioc.File.stdin();
     const data = try stdin.readToEndAlloc(gpa, cuteclaw.persist.max_file_bytes);
     defer gpa.free(data);
 
@@ -402,7 +422,7 @@ fn cmdImport(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const [
     var rt = cuteclaw.ClawRuntime.init(gpa);
     defer rt.deinit();
     try cuteclaw.persist.applyLoadedDocument(&rt, parsed.value);
-    try cuteclaw.persist.saveToPath(&rt, gpa, store, std.time.timestamp());
+    try cuteclaw.persist.saveToPath(&rt, gpa, store, ioc.nowSec());
     try out.print("已自 stdin 导入并写入 {s}\n", .{store});
 }
 
@@ -427,7 +447,7 @@ fn cmdEvolve(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const [
     const store = try resolveStorePath(gpa, argv);
     defer gpa.free(store);
 
-    const raw = try std.fs.cwd().readFileAlloc(gpa, file_path, cuteclaw.persist.max_file_bytes);
+    const raw = try ioc.cwd().readFileAlloc(gpa, file_path, cuteclaw.persist.max_file_bytes);
     defer gpa.free(raw);
 
     var pj = try std.json.parseFromSlice(ProposalFile, gpa, raw, .{ .ignore_unknown_fields = true });
@@ -452,7 +472,7 @@ fn cmdEvolve(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const [
         else => return e,
     };
 
-    const ts = std.time.timestamp();
+    const ts = ioc.nowSec();
     const d = try rt.applyProposal(p, policy, semver, ts);
 
     switch (d) {
@@ -468,7 +488,7 @@ fn cmdValidate(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const
         try out.print("需要 --file\n", .{});
         cli_common.exit(out, err, 2);
     };
-    const raw = try std.fs.cwd().readFileAlloc(gpa, file_path, cuteclaw.persist.max_file_bytes);
+    const raw = try ioc.cwd().readFileAlloc(gpa, file_path, cuteclaw.persist.max_file_bytes);
     defer gpa.free(raw);
     var pj = try std.json.parseFromSlice(ProposalFile, gpa, raw, .{ .ignore_unknown_fields = true });
     defer pj.deinit();
@@ -515,11 +535,11 @@ fn cmdTask(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []c
 
     try rt.rememberEpisode(.{
         .task_id = task_id,
-        .ended_unix = std.time.timestamp(),
+        .ended_unix = ioc.nowSec(),
         .summary = summary,
         .outcome = oc,
     });
-    const ts = std.time.timestamp();
+    const ts = ioc.nowSec();
     try cuteclaw.persist.saveToPath(&rt, gpa, store, ts);
     try out.print("已追加情景并保存\n", .{});
 }
@@ -549,8 +569,8 @@ fn cmdInvoke(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const [
         else => return e,
     };
 
-    try rt.metrics.recordSkillInvocation(name, ok, std.time.timestamp());
-    try cuteclaw.persist.saveToPath(&rt, gpa, store, std.time.timestamp());
+    try rt.metrics.recordSkillInvocation(name, ok, ioc.nowSec());
+    try cuteclaw.persist.saveToPath(&rt, gpa, store, ioc.nowSec());
     try out.print("已记录技能调用: {s} success={}\n", .{ name, ok });
 }
 
@@ -567,7 +587,7 @@ fn cmdConfigInit(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []con
     const force = hasFlag(argv, "--force");
 
     var exists = false;
-    if (std.fs.cwd().access(path, .{})) |_| {
+    if (ioc.cwd().access(path, .{})) |_| {
         exists = true;
     } else |_| {}
     if (exists and !force) {
@@ -640,7 +660,7 @@ fn cmdServeCompat(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []co
 
 fn resolvePort(gpa: std.mem.Allocator, argv: []const []const u8) !u16 {
     if (flagValue(argv, "--port")) |ps| return try std.fmt.parseInt(u16, ps, 10);
-    if (std.process.getEnvVarOwned(gpa, "CUTECLAW_SERVE_PORT")) |ep| {
+    if (ioc.envOwned(gpa, "CUTECLAW_SERVE_PORT")) |ep| {
         defer gpa.free(ep);
         return try std.fmt.parseInt(u16, ep, 10);
     } else |_| {}
@@ -649,7 +669,7 @@ fn resolvePort(gpa: std.mem.Allocator, argv: []const []const u8) !u16 {
 
 fn resolveBind(gpa: std.mem.Allocator, argv: []const []const u8) ![]const u8 {
     if (flagValue(argv, "--bind")) |b| return try gpa.dupe(u8, b);
-    if (std.process.getEnvVarOwned(gpa, "CUTECLAW_SERVE_BIND")) |b| return b else |_| {}
+    if (ioc.envOwned(gpa, "CUTECLAW_SERVE_BIND")) |b| return b else |_| {}
     return try gpa.dupe(u8, "127.0.0.1");
 }
 
@@ -685,10 +705,9 @@ fn cmdWorking(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const 
         if (rt.working.isEmpty()) {
             try out.print("(working 为空)\n", .{});
         } else {
-            var wbuf: [512]u8 = undefined;
-            var fbs = std.io.fixedBufferStream(&wbuf);
-            try rt.working.formatBlock(fbs.writer());
-            try out.print("{s}\n", .{fbs.getWritten()});
+            var fbs = std.Io.Writer.Allocating.init(gpa);
+            try rt.working.formatBlock(&fbs.writer);
+            try out.print("{s}\n", .{fbs.written()});
         }
         return;
     }
@@ -725,7 +744,7 @@ fn cmdWorking(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const 
         .confirmed_facts = if (eql(field, "confirmed_facts")) text else rt.working.confirmed_facts,
         .next_step = if (eql(field, "next_step")) text else rt.working.next_step,
     });
-    try cuteclaw.persist.saveToPath(&rt, gpa, store, std.time.timestamp());
+    try cuteclaw.persist.saveToPath(&rt, gpa, store, ioc.nowSec());
     try out.print("已更新 working 并保存\n", .{});
 }
 
@@ -755,6 +774,6 @@ fn cmdFact(gpa: std.mem.Allocator, out: anytype, err: anytype, argv: []const []c
     };
 
     try rt.addFact(.{ .key = key, .value = value, .confidence = 1.0 });
-    try cuteclaw.persist.saveToPath(&rt, gpa, store, std.time.timestamp());
+    try cuteclaw.persist.saveToPath(&rt, gpa, store, ioc.nowSec());
     try out.print("已追加事实并保存\n", .{});
 }
