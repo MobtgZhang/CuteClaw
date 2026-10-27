@@ -79,7 +79,9 @@ pub const DesignProject = struct {
         self.board.deinit();
         if (self.enclosure) |enc| self.gpa.free(enc.name);
         for (self.artifacts.items) |a| a.free(self.gpa);
-        self.artifacts.deinit(self.gpa);
+        self.artifacts.deinit(
+            self.gpa,
+        );
     }
 
     pub fn setRequirement(self: *DesignProject, key: []const u8, value: []const u8) !void {
