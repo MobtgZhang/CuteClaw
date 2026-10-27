@@ -1,0 +1,22 @@
+{
+  "name": "drawing-set-index",
+  "version": "0.1.0",
+  "description": "工程图成套性：图纸索引与实际图纸逐张核对，标题栏与修订记录必须可追溯",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}
