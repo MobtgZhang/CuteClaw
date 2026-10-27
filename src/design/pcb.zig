@@ -21,9 +21,13 @@ pub const Net = struct {
         if (n < 2) return 0.0;
 
         var visited = std.ArrayList(bool).empty;
-        defer visited.deinit(gpa);
+        defer visited.deinit(
+            gpa,
+        );
         var min_dist = std.ArrayList(f64).empty;
-        defer min_dist.deinit(gpa);
+        defer min_dist.deinit(
+            gpa,
+        );
 
         for (0..n) |i| {
             try visited.append(gpa, false);
@@ -147,7 +151,9 @@ pub const Board = struct {
     /// 按网络分组焊盘；返回切片由调用方释放（内部字符串仍归 Board 所有）。
     pub fn netGroups(self: *const Board) ![]Net {
         var order: std.ArrayList([]const u8) = .empty;
-        defer order.deinit(self.gpa);
+        defer order.deinit(
+            self.gpa,
+        );
         var groups = std.StringHashMap(std.ArrayList(Pad)).init(self.gpa);
         defer {
             var it = groups.iterator();
@@ -165,7 +171,9 @@ pub const Board = struct {
         }
 
         var out: std.ArrayList(Net) = .empty;
-        errdefer out.deinit(self.gpa);
+        errdefer out.deinit(
+            self.gpa,
+        );
         for (order.items) |name| {
             const list = groups.get(name) orelse continue;
             const pads = try self.gpa.alloc(Pad, list.items.len);
@@ -173,7 +181,9 @@ pub const Board = struct {
             for (list.items, 0..) |pad, i| pads[i] = pad;
             try out.append(self.gpa, .{ .name = name, .pads = pads });
         }
-        return out.toOwnedSlice(self.gpa);
+        return out.toOwnedSlice(
+            self.gpa,
+        );
     }
 
     pub fn freeNets(gpa: Allocator, nets: []Net) void {
