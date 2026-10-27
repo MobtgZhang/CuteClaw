@@ -1,0 +1,22 @@
+{
+  "name": "eco-packaging-score",
+  "version": "0.1.0",
+  "description": "循环经济性评分：分数必须由实际材料成分与装载质量算出，不能凭印象打分",
+  "capabilities": [
+    "read_project",
+    "run_tool",
+    "write_memory"
+  ],
+  "engines": {
+    "dsh": ">=1.0.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": "index.js",
+    "client": {
+      "platform": "node",
+      "external": true
+    }
+  },
+  "type": "module"
+}
